@@ -9,6 +9,7 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypedEventEmitterModule } from './eventEmitter/typedEventEmitter.module';
 import { EMailModule } from './mailer/mailer.module';
 import { CommentModule } from "./comments/comment.module";
+import { ArticleModule } from "./articles/article.module";
 
 @Module({
 	imports: [
@@ -17,6 +18,7 @@ import { CommentModule } from "./comments/comment.module";
 		UsersModule,
 		AuthModule,
 		CommentModule,
+		ArticleModule,
 		EMailModule,
 		TypedEventEmitterModule,
 		EventEmitterModule.forRoot(),

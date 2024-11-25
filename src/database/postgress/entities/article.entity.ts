@@ -1,14 +1,14 @@
 import {
 	Column,
 	CreateDateColumn,
-	Entity,
+	Entity, JoinColumn,
 	JoinTable,
 	ManyToOne,
 	OneToMany,
 	PrimaryGeneratedColumn,
-	UpdateDateColumn,
-} from 'typeorm';
-import { ArticleEntity } from '../../../core/entities/article.entity';
+	UpdateDateColumn
+} from "typeorm";
+import { ArticleEntity, ArticleTags } from '../../../core/entities/article.entity';
 import { User } from './user.entity';
 import { Comment } from './comment.entity';
 
@@ -26,17 +26,20 @@ export class Article extends ArticleEntity {
 	@Column()
 	previewImage: string;
 
-	@ManyToOne(() => User, ({ articles }) => articles)
-	@JoinTable({ name: 'authorId' })
-	authorId: number;
+	@Column({ enum: ArticleTags, nullable: true, default: null })
+	tag: ArticleTags;
 
-	@OneToMany(() => Comment, ({ articleId }) => articleId)
+	@ManyToOne(() => User, (user) => user.articles)
+	@JoinColumn({ name: 'authorId' })
+	author: User;
+
+	@OneToMany(() => Comment, (comment) => comment.article)
 	comments: Comment[];
 
 	@Column({ default: 0 })
 	viewers: number;
 
-	@Column()
+	@Column({ type: 'text' })
 	content: string;
 
 	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })

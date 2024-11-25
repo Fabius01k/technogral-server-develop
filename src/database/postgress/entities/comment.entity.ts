@@ -46,6 +46,10 @@ export class Comment extends CommentEntity {
 	@OneToMany(() => Comment, (comment) => comment.parentComment)
 	replies: Comment[];
 
+	@ManyToOne(() => Article, (article) => article.comments, { nullable: true })
+	@JoinColumn({ name: 'articleId' })
+	article: Article;
+
 	@CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
 	createdAt: Date;
 

@@ -4,6 +4,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from '../database/postgress/entities/user.entity';
 import { CreateCommentDto, UpdateCommentDto } from './comment.dto';
+import { Article } from '../database/postgress/entities/article.entity';
+import { mapCommentWithReplies } from "../utils/map.function";
 
 @Injectable()
 export class CommentsService {
@@ -11,28 +13,13 @@ export class CommentsService {
 		@InjectRepository(Comment)
 		private readonly commentRepository: Repository<Comment>,
 		@InjectRepository(User)
-		private readonly userRepository: Repository<User>
+		private readonly userRepository: Repository<User>,
+		@InjectRepository(Article)
+		private readonly articleRepository: Repository<Article>
 	) {}
 
-	private mapCommentWithReplies(comment: Comment): any {
-		return {
-			id: comment.id,
-			text: comment.text,
-			likes: comment.likes,
-			dislikes: comment.dislikes,
-			createdAt: comment.createdAt,
-			updatedAt: comment.updatedAt,
-			author: {
-				id: comment.author.id,
-				nickname: comment.author.nickname,
-				avatar: comment.author.avatar,
-			},
-			replies: comment.replies ? comment.replies.map(this.mapCommentWithReplies.bind(this)) : [],
-		};
-	}
-
 	async createComment(createCommentDto: CreateCommentDto) {
-		const { text, authorId, wallOwnerId, parentCommentId } = createCommentDto;
+		const { text, authorId, wallOwnerId, parentCommentId, articleId } = createCommentDto;
 
 		const author = await this.userRepository.findOne({ where: { id: authorId } });
 		if (!author) throw new NotFoundException('Пользователь не найден');
@@ -46,7 +33,13 @@ export class CommentsService {
 		let parentComment = null;
 		if (parentCommentId) {
 			parentComment = await this.commentRepository.findOne({ where: { id: parentCommentId } });
-			if (!parentComment) throw new NotFoundException('Родителський комментарий не найден');
+			if (!parentComment) throw new NotFoundException('Родительский комментарий не найден');
+		}
+
+		let article = null;
+		if (articleId) {
+			article = await this.articleRepository.findOne({ where: { id: articleId } });
+			if (!article) throw new NotFoundException('Статья не найдена');
 		}
 
 		const comment = this.commentRepository.create({
@@ -54,6 +47,7 @@ export class CommentsService {
 			author,
 			wallOwner,
 			parentComment,
+			article,
 			updatedAt: null,
 		});
 		const savedComment = await this.commentRepository.save(comment);
@@ -70,16 +64,6 @@ export class CommentsService {
 				nickname: savedComment.author?.nickname,
 				avatar: savedComment.author?.avatar,
 			},
-			parentComment: savedComment.parentComment
-				? {
-						id: savedComment.parentComment.id,
-						text: savedComment.parentComment.text,
-						likes: savedComment.parentComment.likes,
-						dislikes: savedComment.parentComment.dislikes,
-						createdAt: savedComment.parentComment.createdAt,
-						updatedAt: savedComment.parentComment.updatedAt,
-					}
-				: null,
 		};
 	}
 
@@ -101,7 +85,7 @@ export class CommentsService {
 			.addOrderBy('nestedReplies.createdAt', 'ASC')
 			.getMany();
 
-		return comments.map(this.mapCommentWithReplies.bind(this));
+		return comments.map(mapCommentWithReplies);
 	}
 
 	async updateComment(commentId: string, updateCommentDto: UpdateCommentDto): Promise<Comment> {

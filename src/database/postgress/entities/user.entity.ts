@@ -51,7 +51,7 @@ export class User extends UserEntity {
 	@Column({ type: 'timestamp', nullable: true })
 	resetPasswordExpires: Date;
 
-	@OneToMany(() => Article, ({ authorId }) => authorId)
+	@OneToMany(() => Article, (article) => article.author)
 	articles: Article[];
 
 	@OneToMany(() => Comment, ({ authorId }) => authorId)
