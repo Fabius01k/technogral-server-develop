@@ -24,6 +24,8 @@ export function mapArticleWithComments(article: Article): any {
 		title: article.title,
 		previewImage: article.previewImage,
 		content: article.content,
+		likes: article.likes,
+		dislikes: article.dislikes,
 		createdAt: article.createdAt,
 		author: {
 			id: article.author?.id,

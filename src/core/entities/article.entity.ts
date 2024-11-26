@@ -1,13 +1,13 @@
 import { TNullable } from '../../types/advanced.types';
 
 export enum ArticleTags {
-	GAMES = 'Игры и развлечения',
-	IT = 'IT-технологии',
-	AI = 'Искуственный интеллект',
-	HARDWARE = 'ПК и комплектующие',
-	PROGRAMMING = 'Программирование',
-	DESIGN = 'Дизайн',
-	DEVICES = 'Девайсы',
+	GAMES = 'gamesAndEntertainment',
+	IT = 'itTechnology',
+	AI = 'artificialIntelligence',
+	HARDWARE = 'pcAndComponents',
+	PROGRAMMING = 'programming',
+	DESIGN = 'design',
+	DEVICES = 'devices',
 }
 
 export abstract class ArticleEntity {

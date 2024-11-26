@@ -13,6 +13,7 @@ import {
 import { User } from './user.entity';
 import { Article } from './article.entity';
 import { CommentEntity } from '../../../core/entities/comment.entity';
+import { CommentUserReaction } from "./comment.userReaction";
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -49,6 +50,9 @@ export class Comment extends CommentEntity {
 	@ManyToOne(() => Article, (article) => article.comments, { nullable: true })
 	@JoinColumn({ name: 'articleId' })
 	article: Article;
+
+	@OneToMany(() => CommentUserReaction, (reaction) => reaction.comment)
+	reactions: CommentUserReaction[];
 
 	@CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)' })
 	createdAt: Date;

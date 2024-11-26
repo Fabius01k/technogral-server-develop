@@ -5,7 +5,9 @@ import { Repository } from 'typeorm';
 import { User } from '../database/postgress/entities/user.entity';
 import { CreateCommentDto, UpdateCommentDto } from './comment.dto';
 import { Article } from '../database/postgress/entities/article.entity';
-import { mapCommentWithReplies } from "../utils/map.function";
+import { mapCommentWithReplies } from '../utils/map.function';
+import { CommentUserReaction } from '../database/postgress/entities/comment.userReaction';
+import { ReactionTypes } from "../core/entities/comment.entity";
 
 @Injectable()
 export class CommentsService {
@@ -15,8 +17,31 @@ export class CommentsService {
 		@InjectRepository(User)
 		private readonly userRepository: Repository<User>,
 		@InjectRepository(Article)
-		private readonly articleRepository: Repository<Article>
+		private readonly articleRepository: Repository<Article>,
+		@InjectRepository(CommentUserReaction)
+		private readonly commentReactionRepository: Repository<CommentUserReaction>
 	) {}
+
+	async getWallCommentsWithReplies(userId: string) {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+		if (!user) throw new NotFoundException('User not found');
+
+		const comments = await this.commentRepository
+			.createQueryBuilder('comment')
+			.leftJoinAndSelect('comment.author', 'author')
+			.leftJoinAndSelect('comment.replies', 'replies')
+			.leftJoinAndSelect('replies.author', 'replyAuthor')
+			.leftJoinAndSelect('replies.replies', 'nestedReplies')
+			.leftJoinAndSelect('nestedReplies.author', 'nestedReplyAuthor')
+			.where('comment.wallOwner = :userId', { userId })
+			.andWhere('comment.parentComment IS NULL')
+			.orderBy('comment.createdAt', 'ASC')
+			.addOrderBy('replies.createdAt', 'ASC')
+			.addOrderBy('nestedReplies.createdAt', 'ASC')
+			.getMany();
+
+		return comments.map(mapCommentWithReplies);
+	}
 
 	async createComment(createCommentDto: CreateCommentDto) {
 		const { text, authorId, wallOwnerId, parentCommentId, articleId } = createCommentDto;
@@ -67,31 +92,69 @@ export class CommentsService {
 		};
 	}
 
-	async getWallCommentsWithReplies(userId: string) {
+	async createReactionToComment(userId: string, commentId: string, reactionType: ReactionTypes) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
-		if (!user) throw new NotFoundException('User not found');
-
-		const comments = await this.commentRepository
-			.createQueryBuilder('comment')
-			.leftJoinAndSelect('comment.author', 'author')
-			.leftJoinAndSelect('comment.replies', 'replies')
-			.leftJoinAndSelect('replies.author', 'replyAuthor')
-			.leftJoinAndSelect('replies.replies', 'nestedReplies')
-			.leftJoinAndSelect('nestedReplies.author', 'nestedReplyAuthor')
-			.where('comment.wallOwner = :userId', { userId })
-			.andWhere('comment.parentComment IS NULL')
-			.orderBy('comment.createdAt', 'ASC')
-			.addOrderBy('replies.createdAt', 'ASC')
-			.addOrderBy('nestedReplies.createdAt', 'ASC')
-			.getMany();
-
-		return comments.map(mapCommentWithReplies);
-	}
-
-	async updateComment(commentId: string, updateCommentDto: UpdateCommentDto): Promise<Comment> {
-		const { text } = updateCommentDto;
+		if (!user) throw new NotFoundException('Пользователь не найден');
 
 		const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+		if (!comment) throw new NotFoundException('Комментарий не найден');
+
+		const existingReaction = await this.commentReactionRepository.findOne({
+			where: { user: { id: userId }, comment: { id: commentId } },
+		});
+
+		if (existingReaction && existingReaction.type === reactionType) {
+			await this.commentReactionRepository.remove(existingReaction);
+
+			if (reactionType === 'like') {
+				comment.likes--;
+			} else {
+				comment.dislikes--;
+			}
+
+			await this.commentRepository.save(comment);
+			return true;
+		}
+
+		if (existingReaction) {
+			if (existingReaction.type === 'like') {
+				comment.likes--;
+				comment.dislikes++;
+			} else {
+				comment.likes++;
+				comment.dislikes--;
+			}
+
+			existingReaction.type = reactionType;
+			await this.commentReactionRepository.save(existingReaction);
+			await this.commentRepository.save(comment);
+
+			return true;
+		}
+
+		const newReaction = this.commentReactionRepository.create({
+			user,
+			comment,
+			type: reactionType,
+		});
+
+		await this.commentReactionRepository.save(newReaction);
+
+		if (reactionType === 'like') {
+			comment.likes++;
+		} else {
+			comment.dislikes++;
+		}
+
+		await this.commentRepository.save(comment);
+
+		return true;
+	}
+
+	async updateComment(id: string, updateCommentDto: UpdateCommentDto): Promise<Comment> {
+		const { text } = updateCommentDto;
+
+		const comment = await this.commentRepository.findOne({ where: { id: id } });
 		if (!comment) throw new NotFoundException('Комментарий не найден');
 
 		comment.text = text;
@@ -99,11 +162,13 @@ export class CommentsService {
 		return await this.commentRepository.save(comment);
 	}
 
-	async deleteComment(commentId: string): Promise<{ message: string }> {
-		const comment = await this.commentRepository.findOne({ where: { id: commentId } });
-		if (!comment) throw new NotFoundException('Комментарий не найден');
+	async deleteComment(id: string) {
+		const deleteResult = await this.commentRepository.delete(id);
 
-		await this.commentRepository.remove(comment);
-		return { message: 'Комментарий удалён' };
+		if (deleteResult.affected === 0) {
+			throw new NotFoundException('Комментарий не найден');
+		}
+
+		return true;
 	}
 }

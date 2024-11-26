@@ -25,3 +25,9 @@ export class CreateArticleDto {
 }
 
 export class UpdateArticleDto extends PartialType(CreateArticleDto) {}
+
+export class GetArticlesQuery {
+	@IsOptional()
+	@IsEnum(ArticleTags, { message: 'Invalid tag' })
+	tag?: ArticleTags;
+}

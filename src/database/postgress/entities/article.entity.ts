@@ -1,16 +1,18 @@
 import {
 	Column,
 	CreateDateColumn,
-	Entity, JoinColumn,
+	Entity,
+	JoinColumn,
 	JoinTable,
 	ManyToOne,
 	OneToMany,
 	PrimaryGeneratedColumn,
-	UpdateDateColumn
-} from "typeorm";
+	UpdateDateColumn,
+} from 'typeorm';
 import { ArticleEntity, ArticleTags } from '../../../core/entities/article.entity';
 import { User } from './user.entity';
 import { Comment } from './comment.entity';
+import { ArticleUserReaction } from "./article.userReaction";
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -36,11 +38,20 @@ export class Article extends ArticleEntity {
 	@OneToMany(() => Comment, (comment) => comment.article)
 	comments: Comment[];
 
+	@OneToMany(() => ArticleUserReaction, (reaction) => reaction.article)
+	reactions: ArticleUserReaction[];
+
 	@Column({ default: 0 })
 	viewers: number;
 
 	@Column({ type: 'text' })
 	content: string;
+
+	@Column({ default: 0 })
+	likes: number;
+
+	@Column({ default: 0 })
+	dislikes: number;
 
 	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
 	readonly createdAt: Date;

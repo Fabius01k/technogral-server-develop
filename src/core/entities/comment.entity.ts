@@ -10,3 +10,8 @@ export abstract class CommentEntity {
 	createdAt: Date;
 	updatedAt: TNullable<Date>;
 }
+
+export enum ReactionTypes {
+	LIKE = 'like',
+	DISLIKE = 'dislike',
+}

@@ -145,4 +145,15 @@ export class UsersService {
 
 		return { message: 'Password updated successfully' };
 	}
+
+	async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+
+		if (!user) {
+			throw new NotFoundException('User not found');
+		}
+
+		user.avatar = avatarUrl;
+		await this.userRepository.save(user);
+	}
 }

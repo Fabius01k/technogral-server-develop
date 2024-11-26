@@ -4,12 +4,13 @@ import { Comment } from '../database/postgress/entities/comment.entity';
 import { CommentsService } from './comment.service';
 import { CommentsController } from './comment.controller';
 import { UsersModule } from '../users/users.module';
-import { ArticleModule } from "../articles/article.module";
+import { ArticleModule } from '../articles/article.module';
+import {  CommentUserReaction } from "../database/postgress/entities/comment.userReaction";
 
 @Module({
 	controllers: [CommentsController],
 	providers: [CommentsService],
 	exports: [CommentsService],
-	imports: [TypeOrmModule.forFeature([Comment]), UsersModule,ArticleModule],
+	imports: [TypeOrmModule.forFeature([Comment, CommentUserReaction]), UsersModule, ArticleModule],
 })
 export class CommentModule {}

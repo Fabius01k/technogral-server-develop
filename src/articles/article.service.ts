@@ -5,6 +5,10 @@ import { CreateArticleDto, UpdateArticleDto } from './article.dto';
 import { Repository } from 'typeorm';
 import { User } from '../database/postgress/entities/user.entity';
 import { mapArticleWithComments } from '../utils/map.function';
+import { ArticleTags } from '../core/entities/article.entity';
+import { ArticleUserReaction } from '../database/postgress/entities/article.userReaction';
+import { ReactionTypes } from '../core/entities/comment.entity';
+import { S3Service } from "../s3/s3.service";
 
 @Injectable()
 export class ArticleService {
@@ -12,11 +16,15 @@ export class ArticleService {
 		@InjectRepository(Article)
 		private readonly articleRepository: Repository<Article>,
 		@InjectRepository(User)
-		private readonly userRepository: Repository<User>
+		private readonly userRepository: Repository<User>,
+		@InjectRepository(ArticleUserReaction)
+		private readonly articleReactionRepository: Repository<ArticleUserReaction>,
+		private readonly s3Service: S3Service
 	) {}
 
-	async GetAllArticles(): Promise<Article[]> {
-		const articles = await this.articleRepository
+	async GetAllArticles(tag?: ArticleTags): Promise<Article[]> {
+		console.log(tag, 'tag');
+		const query = this.articleRepository
 			.createQueryBuilder('article')
 			.leftJoinAndSelect('article.author', 'author')
 			.leftJoinAndSelect('article.comments', 'comments')
@@ -25,23 +33,27 @@ export class ArticleService {
 			.leftJoinAndSelect('replies.author', 'replyAuthor')
 			.orderBy('article.createdAt', 'DESC')
 			.addOrderBy('comments.createdAt', 'ASC')
-			.addOrderBy('replies.createdAt', 'ASC')
-			.getMany();
+			.addOrderBy('replies.createdAt', 'ASC');
 
+		if (tag) {
+			query.where('article.tag = :tag', { tag });
+		}
+
+		const articles = await query.getMany();
 		return articles.map(mapArticleWithComments);
 	}
 
 	async GetArticlesById(id: string): Promise<Article> {
 		const article = await this.articleRepository
 			.createQueryBuilder('article')
-			.leftJoinAndSelect('article.author', 'author') // Загрузка автора статьи
-			.leftJoinAndSelect('article.comments', 'comments') // Загрузка комментариев статьи
-			.leftJoinAndSelect('comments.author', 'commentAuthor') // Загрузка авторов комментариев
-			.leftJoinAndSelect('comments.replies', 'replies') // Загрузка ответов на комментарии
-			.leftJoinAndSelect('replies.author', 'replyAuthor') // Загрузка авторов ответов
+			.leftJoinAndSelect('article.author', 'author')
+			.leftJoinAndSelect('article.comments', 'comments')
+			.leftJoinAndSelect('comments.author', 'commentAuthor')
+			.leftJoinAndSelect('comments.replies', 'replies')
+			.leftJoinAndSelect('replies.author', 'replyAuthor')
 			.where('article.id = :id', { id })
-			.orderBy('comments.createdAt', 'ASC') // Сортировка комментариев
-			.addOrderBy('replies.createdAt', 'ASC') // Сортировка ответов
+			.orderBy('comments.createdAt', 'ASC')
+			.addOrderBy('replies.createdAt', 'ASC')
 			.getOne();
 
 		if (!article) {
@@ -61,11 +73,13 @@ export class ArticleService {
 			title,
 			previewImage,
 			tag,
-			authorId,
+			author,
 			content,
 		});
 
 		const savedArticle = await this.articleRepository.save(article);
+
+		console.log(savedArticle,"savedArticle");
 
 		return {
 			id: savedArticle.id,
@@ -81,6 +95,77 @@ export class ArticleService {
 		};
 	}
 
+	async createReactionToArticle(userId: string, articleId: string, reactionType: ReactionTypes) {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+		if (!user) throw new NotFoundException('Пользователь не найден');
+
+		const article = await this.articleRepository.findOne({ where: { id: articleId } });
+		if (!article) throw new NotFoundException('Новость не найдена');
+
+		const existingReaction = await this.articleReactionRepository.findOne({
+			where: { user: { id: userId }, article: { id: articleId } },
+		});
+
+		if (existingReaction && existingReaction.type === reactionType) {
+			await this.articleReactionRepository.remove(existingReaction);
+
+			if (reactionType === 'like') {
+				article.likes--;
+			} else {
+				article.dislikes--;
+			}
+
+			await this.articleRepository.save(article);
+			return true;
+		}
+
+		if (existingReaction) {
+			if (existingReaction.type === 'like') {
+				article.likes--;
+				article.dislikes++;
+			} else {
+				article.likes++;
+				article.dislikes--;
+			}
+
+			existingReaction.type = reactionType;
+			await this.articleReactionRepository.save(existingReaction);
+			await this.articleRepository.save(article);
+
+			return true;
+		}
+
+		const newReaction = this.articleReactionRepository.create({
+			user,
+			article,
+			type: reactionType,
+		});
+
+		await this.articleReactionRepository.save(newReaction);
+
+		if (reactionType === 'like') {
+			article.likes++;
+		} else {
+			article.dislikes++;
+		}
+
+		await this.articleRepository.save(article);
+
+		return true;
+	}
+
+	async uploadPreviewImage(articleId: string, file: Express.Multer.File): Promise<{ previewImage: string }> {
+		const article = await this.articleRepository.findOne({ where: { id: articleId } });
+		if (!article) throw new NotFoundException('Новость не найдена');
+
+		const previewImage = await this.s3Service.uploadFile(file);
+
+		article.previewImage = previewImage;
+		await this.articleRepository.save(article);
+
+		return { previewImage };
+	}
+
 	async updateArticle(id: string, updateArticleDto: UpdateArticleDto): Promise<Article> {
 		const article = await this.articleRepository.preload({
 			id,
@@ -94,13 +179,13 @@ export class ArticleService {
 		return this.articleRepository.save(article);
 	}
 
-	async deleteArticle(id: string): Promise<{ message: string }> {
-		const article = await this.articleRepository.findOne({ where: { id } });
-		if (!article) {
+	async deleteArticle(id: string) {
+		const deleteResult = await this.articleRepository.delete(id);
+
+		if (deleteResult.affected === 0) {
 			throw new NotFoundException('Новость не найдена');
 		}
 
-		await this.articleRepository.remove(article);
-		return { message: 'Новость удалена' };
+		return true;
 	}
 }

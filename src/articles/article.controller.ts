@@ -1,15 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
-import { CreateArticleDto, UpdateArticleDto } from './article.dto';
-import { Article } from '../database/postgress/entities/article.entity';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { CreateArticleDto, GetArticlesQuery, UpdateArticleDto } from './article.dto';
 import { ArticleService } from './article.service';
+import { ReactionTypes } from '../core/entities/comment.entity';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('articles')
 export class ArticleController {
 	constructor(private readonly articleService: ArticleService) {}
 
 	@Get()
-	async GetAllArticles() {
-		return this.articleService.GetAllArticles();
+	async GetAllArticles(@Query() query: GetArticlesQuery) {
+		console.log(query.tag, 'query.tag');
+		return this.articleService.GetAllArticles(query.tag);
 	}
 
 	@Get('/:articlesId')
@@ -20,6 +22,21 @@ export class ArticleController {
 	@Post()
 	async createArticle(@Body() createArticleDto: CreateArticleDto) {
 		return this.articleService.createArticle(createArticleDto);
+	}
+
+	@Post('/:articleId/react')
+	async createReactionToArticle(
+		@Param('articleId') articleId: string,
+		@Body('userId') userId: string,
+		@Body('reactionType') reactionType: ReactionTypes
+	) {
+		return this.articleService.createReactionToArticle(userId, articleId, reactionType);
+	}
+
+	@Post('/:articleId/upload-image')
+	@UseInterceptors(FileInterceptor('file'))
+	async uploadPreviewImage(@Param('articleId') articleId: string, @UploadedFile() file: Express.Multer.File) {
+		return this.articleService.uploadPreviewImage(articleId, file);
 	}
 
 	@Put(':articlesId')
