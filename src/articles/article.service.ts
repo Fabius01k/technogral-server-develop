@@ -8,7 +8,8 @@ import { mapArticleWithComments } from '../utils/map.function';
 import { ArticleTags } from '../core/entities/article.entity';
 import { ArticleUserReaction } from '../database/postgress/entities/article.userReaction';
 import { ReactionTypes } from '../core/entities/comment.entity';
-import { S3Service } from "../s3/s3.service";
+import { S3Service } from '../s3/s3.service';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class ArticleService {
@@ -19,7 +20,8 @@ export class ArticleService {
 		private readonly userRepository: Repository<User>,
 		@InjectRepository(ArticleUserReaction)
 		private readonly articleReactionRepository: Repository<ArticleUserReaction>,
-		private readonly s3Service: S3Service
+		private readonly s3Service: S3Service,
+		private readonly usersService: UsersService
 	) {}
 
 	async GetAllArticles(tag?: ArticleTags): Promise<Article[]> {
@@ -79,7 +81,10 @@ export class ArticleService {
 
 		const savedArticle = await this.articleRepository.save(article);
 
-		console.log(savedArticle,"savedArticle");
+		author.articlesCount = (author.articlesCount || 0) + 1;
+		await this.userRepository.save(author);
+
+		await this.usersService.checkAndUpdateUserLevel(authorId);
 
 		return {
 			id: savedArticle.id,
@@ -95,12 +100,77 @@ export class ArticleService {
 		};
 	}
 
+	// async createReactionToArticle(userId: string, articleId: string, reactionType: ReactionTypes) {
+	// 	const user = await this.userRepository.findOne({ where: { id: userId } });
+	// 	if (!user) throw new NotFoundException('Пользователь не найден');
+	//
+	// 	const article = await this.articleRepository.findOne({ where: { id: articleId } });
+	// 	if (!article) throw new NotFoundException('Новость не найдена');
+	//
+	// 	const existingReaction = await this.articleReactionRepository.findOne({
+	// 		where: { user: { id: userId }, article: { id: articleId } },
+	// 	});
+	//
+	// 	if (existingReaction && existingReaction.type === reactionType) {
+	// 		await this.articleReactionRepository.remove(existingReaction);
+	//
+	// 		if (reactionType === 'like') {
+	// 			article.likes--;
+	// 		} else {
+	// 			article.dislikes--;
+	// 		}
+	//
+	// 		await this.articleRepository.save(article);
+	// 		return true;
+	// 	}
+	//
+	// 	if (existingReaction) {
+	// 		if (existingReaction.type === 'like') {
+	// 			article.likes--;
+	// 			article.dislikes++;
+	// 		} else {
+	// 			article.likes++;
+	// 			article.dislikes--;
+	// 		}
+	//
+	// 		existingReaction.type = reactionType;
+	// 		await this.articleReactionRepository.save(existingReaction);
+	// 		await this.articleRepository.save(article);
+	//
+	// 		return true;
+	// 	}
+	//
+	// 	const newReaction = this.articleReactionRepository.create({
+	// 		user,
+	// 		article,
+	// 		type: reactionType,
+	// 	});
+	//
+	// 	await this.articleReactionRepository.save(newReaction);
+	//
+	// 	if (reactionType === 'like') {
+	// 		article.likes++;
+	// 	} else {
+	// 		article.dislikes++;
+	// 	}
+	//
+	// 	await this.articleRepository.save(article);
+	//
+	// 	return true;
+	// }
+
 	async createReactionToArticle(userId: string, articleId: string, reactionType: ReactionTypes) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
 		if (!user) throw new NotFoundException('Пользователь не найден');
 
-		const article = await this.articleRepository.findOne({ where: { id: articleId } });
+		const article = await this.articleRepository.findOne({
+			where: { id: articleId },
+			relations: ['author'],
+		});
 		if (!article) throw new NotFoundException('Новость не найдена');
+
+		const author = article.author;
+		if (!author) throw new NotFoundException('Автор статьи не найден');
 
 		const existingReaction = await this.articleReactionRepository.findOne({
 			where: { user: { id: userId }, article: { id: articleId } },
@@ -111,11 +181,13 @@ export class ArticleService {
 
 			if (reactionType === 'like') {
 				article.likes--;
+				author.likesReceivedCount = Math.max(0, (author.likesReceivedCount || 0) - 1);
 			} else {
 				article.dislikes--;
 			}
 
 			await this.articleRepository.save(article);
+			await this.userRepository.save(author);
 			return true;
 		}
 
@@ -123,15 +195,17 @@ export class ArticleService {
 			if (existingReaction.type === 'like') {
 				article.likes--;
 				article.dislikes++;
+				author.likesReceivedCount = Math.max(0, (author.likesReceivedCount || 0) - 1);
 			} else {
 				article.likes++;
 				article.dislikes--;
+				author.likesReceivedCount = (author.likesReceivedCount || 0) + 1;
 			}
 
 			existingReaction.type = reactionType;
 			await this.articleReactionRepository.save(existingReaction);
 			await this.articleRepository.save(article);
-
+			await this.userRepository.save(author);
 			return true;
 		}
 
@@ -145,28 +219,35 @@ export class ArticleService {
 
 		if (reactionType === 'like') {
 			article.likes++;
+			author.likesReceivedCount = (author.likesReceivedCount || 0) + 1;
 		} else {
 			article.dislikes++;
 		}
 
 		await this.articleRepository.save(article);
+		await this.userRepository.save(author);
+		await this.usersService.checkAndUpdateUserLevel(author.id);
 
 		return true;
 	}
 
-	async uploadPreviewImage(articleId: string, file: Express.Multer.File): Promise<{ previewImage: string }> {
+	async uploadPreviewImage(articleId: string, file: Express.Multer.File, folder: string) {
 		const article = await this.articleRepository.findOne({ where: { id: articleId } });
 		if (!article) throw new NotFoundException('Новость не найдена');
 
-		const previewImage = await this.s3Service.uploadFile(file);
+		if (article.previewImage) {
+			await this.s3Service.deleteFile(article.previewImage);
+		}
+
+		const previewImage = await this.s3Service.uploadFile(file, folder);
 
 		article.previewImage = previewImage;
 		await this.articleRepository.save(article);
 
-		return { previewImage };
+		return previewImage;
 	}
 
-	async updateArticle(id: string, updateArticleDto: UpdateArticleDto): Promise<Article> {
+	async updateArticle(id: string, updateArticleDto: UpdateArticleDto) {
 		const article = await this.articleRepository.preload({
 			id,
 			...updateArticleDto,

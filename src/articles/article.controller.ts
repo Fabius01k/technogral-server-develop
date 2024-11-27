@@ -3,8 +3,10 @@ import { CreateArticleDto, GetArticlesQuery, UpdateArticleDto } from './article.
 import { ArticleService } from './article.service';
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { ResponseInterceptor } from '../interceptors/response.interceptor';
 
 @Controller('articles')
+@UseInterceptors(ResponseInterceptor)
 export class ArticleController {
 	constructor(private readonly articleService: ArticleService) {}
 
@@ -36,7 +38,12 @@ export class ArticleController {
 	@Post('/:articleId/upload-image')
 	@UseInterceptors(FileInterceptor('file'))
 	async uploadPreviewImage(@Param('articleId') articleId: string, @UploadedFile() file: Express.Multer.File) {
-		return this.articleService.uploadPreviewImage(articleId, file);
+		if (!file) {
+			throw new Error('Файл не прикреплен');
+		}
+		const url = await this.articleService.uploadPreviewImage(articleId, file, 'news-images');
+
+		return { message: 'Фото успешно загружено', url };
 	}
 
 	@Put(':articlesId')

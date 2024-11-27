@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { S3Config } from './s3.config';
 import { v4 as uuid } from 'uuid';
 
@@ -16,8 +16,8 @@ export class S3Service {
 		});
 	}
 
-	async uploadFile(file: Express.Multer.File): Promise<string> {
-		const key = `avatars/${uuid()}-${file.originalname}`;
+	async uploadFile(file: Express.Multer.File, folder: string): Promise<string> {
+		const key = `${folder}/${uuid()}-${file.originalname}`;
 
 		await this.s3.send(
 			new PutObjectCommand({
@@ -28,6 +28,18 @@ export class S3Service {
 			})
 		);
 
-		return `https://${S3Config.bucketName}.storage.yandexcloud.net/${key}`;
+		return `https://${S3Config.bucketName}.storage.timeweb.cloud.net/${key}`;
+	}
+
+	async deleteFile(fileUrl: string): Promise<void> {
+		const key = fileUrl.split(`${S3Config.bucketName}.storage.timeweb.cloud.net/`)[1];
+		if (!key) throw new Error('Некорректный URL файла');
+
+		await this.s3.send(
+			new DeleteObjectCommand({
+				Bucket: S3Config.bucketName,
+				Key: key,
+			})
+		);
 	}
 }

@@ -7,7 +7,8 @@ import { CreateCommentDto, UpdateCommentDto } from './comment.dto';
 import { Article } from '../database/postgress/entities/article.entity';
 import { mapCommentWithReplies } from '../utils/map.function';
 import { CommentUserReaction } from '../database/postgress/entities/comment.userReaction';
-import { ReactionTypes } from "../core/entities/comment.entity";
+import { ReactionTypes } from '../core/entities/comment.entity';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class CommentsService {
@@ -19,7 +20,8 @@ export class CommentsService {
 		@InjectRepository(Article)
 		private readonly articleRepository: Repository<Article>,
 		@InjectRepository(CommentUserReaction)
-		private readonly commentReactionRepository: Repository<CommentUserReaction>
+		private readonly commentReactionRepository: Repository<CommentUserReaction>,
+		private readonly usersService: UsersService
 	) {}
 
 	async getWallCommentsWithReplies(userId: string) {
@@ -77,6 +79,11 @@ export class CommentsService {
 		});
 		const savedComment = await this.commentRepository.save(comment);
 
+		author.commentsReceivedCount = (author.commentsReceivedCount || 0) + 1;
+		await this.userRepository.save(author);
+
+		await this.usersService.checkAndUpdateUserLevel(authorId);
+
 		return {
 			id: savedComment.id,
 			text: savedComment.text,
@@ -92,12 +99,74 @@ export class CommentsService {
 		};
 	}
 
+	// async createReactionToComment(userId: string, commentId: string, reactionType: ReactionTypes) {
+	// 	const user = await this.userRepository.findOne({ where: { id: userId } });
+	// 	if (!user) throw new NotFoundException('Пользователь не найден');
+	//
+	// 	const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+	// 	if (!comment) throw new NotFoundException('Комментарий не найден');
+	//
+	// 	const existingReaction = await this.commentReactionRepository.findOne({
+	// 		where: { user: { id: userId }, comment: { id: commentId } },
+	// 	});
+	//
+	// 	if (existingReaction && existingReaction.type === reactionType) {
+	// 		await this.commentReactionRepository.remove(existingReaction);
+	//
+	// 		if (reactionType === 'like') {
+	// 			comment.likes--;
+	// 		} else {
+	// 			comment.dislikes--;
+	// 		}
+	//
+	// 		await this.commentRepository.save(comment);
+	// 		return true;
+	// 	}
+	//
+	// 	if (existingReaction) {
+	// 		if (existingReaction.type === 'like') {
+	// 			comment.likes--;
+	// 			comment.dislikes++;
+	// 		} else {
+	// 			comment.likes++;
+	// 			comment.dislikes--;
+	// 		}
+	//
+	// 		existingReaction.type = reactionType;
+	// 		await this.commentReactionRepository.save(existingReaction);
+	// 		await this.commentRepository.save(comment);
+	//
+	// 		return true;
+	// 	}
+	//
+	// 	const newReaction = this.commentReactionRepository.create({
+	// 		user,
+	// 		comment,
+	// 		type: reactionType,
+	// 	});
+	//
+	// 	await this.commentReactionRepository.save(newReaction);
+	//
+	// 	if (reactionType === 'like') {
+	// 		comment.likes++;
+	// 	} else {
+	// 		comment.dislikes++;
+	// 	}
+	//
+	// 	await this.commentRepository.save(comment);
+	//
+	// 	return true;
+	// }
+
 	async createReactionToComment(userId: string, commentId: string, reactionType: ReactionTypes) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
 		if (!user) throw new NotFoundException('Пользователь не найден');
 
-		const comment = await this.commentRepository.findOne({ where: { id: commentId } });
+		const comment = await this.commentRepository.findOne({ where: { id: commentId }, relations: ['author'] });
 		if (!comment) throw new NotFoundException('Комментарий не найден');
+
+		const commentAuthor = comment.author;
+		if (!commentAuthor) throw new NotFoundException('Автор комментария не найден');
 
 		const existingReaction = await this.commentReactionRepository.findOne({
 			where: { user: { id: userId }, comment: { id: commentId } },
@@ -108,11 +177,13 @@ export class CommentsService {
 
 			if (reactionType === 'like') {
 				comment.likes--;
+				commentAuthor.likesReceivedCount--;
 			} else {
 				comment.dislikes--;
 			}
 
 			await this.commentRepository.save(comment);
+			await this.userRepository.save(commentAuthor);
 			return true;
 		}
 
@@ -120,15 +191,17 @@ export class CommentsService {
 			if (existingReaction.type === 'like') {
 				comment.likes--;
 				comment.dislikes++;
+				commentAuthor.likesReceivedCount--;
 			} else {
 				comment.likes++;
 				comment.dislikes--;
+				commentAuthor.likesReceivedCount++;
 			}
 
 			existingReaction.type = reactionType;
 			await this.commentReactionRepository.save(existingReaction);
 			await this.commentRepository.save(comment);
-
+			await this.userRepository.save(commentAuthor);
 			return true;
 		}
 
@@ -142,24 +215,30 @@ export class CommentsService {
 
 		if (reactionType === 'like') {
 			comment.likes++;
+			commentAuthor.likesReceivedCount++;
 		} else {
 			comment.dislikes++;
 		}
 
 		await this.commentRepository.save(comment);
+		await this.userRepository.save(commentAuthor);
+		await this.usersService.checkAndUpdateUserLevel(commentAuthor.id);
 
 		return true;
 	}
 
-	async updateComment(id: string, updateCommentDto: UpdateCommentDto): Promise<Comment> {
-		const { text } = updateCommentDto;
+	async updateComment(id: string, updateCommentDto: UpdateCommentDto) {
+		const comment = await this.commentRepository.preload({
+			id,
+			...updateCommentDto,
+		});
 
-		const comment = await this.commentRepository.findOne({ where: { id: id } });
-		if (!comment) throw new NotFoundException('Комментарий не найден');
+		if (!comment) {
+			throw new NotFoundException('Комментарий не найден');
+		}
 
-		comment.text = text;
 		comment.updatedAt = new Date();
-		return await this.commentRepository.save(comment);
+		return this.commentRepository.save(comment);
 	}
 
 	async deleteComment(id: string) {

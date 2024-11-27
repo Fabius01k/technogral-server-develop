@@ -1,12 +1,13 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from '../database/postgress/entities/user.entity';
+import { levelRequirements, User } from "../database/postgress/entities/user.entity";
 import { Repository } from 'typeorm';
 import { CreateUserDto, TChangePasswordDto, UpdateUserDto } from './users.dto';
 import { TypedEventEmitterService } from '../eventEmitter/typedEventEmitter.service';
 import { comparePasswords, getPasswordHash } from '../utils/password.utils';
 import { randomBytes } from 'crypto';
 import { EMailService } from '../mailer/mailer.service';
+import { S3Service } from '../s3/s3.service';
 
 @Injectable()
 export class UsersService {
@@ -14,10 +15,11 @@ export class UsersService {
 		@InjectRepository(User)
 		private readonly userRepository: Repository<User>,
 		private readonly eventEmitter: TypedEventEmitterService,
-		private readonly eMailService: EMailService
+		private readonly eMailService: EMailService,
+		private readonly s3Service: S3Service
 	) {}
 
-	async getAll() {
+	async getAllUsers() {
 		return await this.userRepository.find();
 	}
 
@@ -38,11 +40,7 @@ export class UsersService {
 			.getOne();
 	}
 
-	async getByLogin(login: string) {
-		return await this.userRepository.findOneBy({ login });
-	}
-
-	async create(userData: CreateUserDto) {
+	async createUser(userData: CreateUserDto) {
 		const newUser = this.userRepository.create(userData);
 
 		return await this.userRepository.save(newUser).catch((e) => {
@@ -56,16 +54,18 @@ export class UsersService {
 		});
 	}
 
-	async checkWhetherUserExists(userId: string): Promise<boolean> {
+	async getUserById(userId: string) {
 		const user = await this.userRepository.findOneBy({ id: userId });
-		return !!user;
+		if (!user) throw new NotFoundException('Пользователь не найден');
+
+		return user;
 	}
 
-	async delete(userId: string) {
+	async deleteUser(userId: string) {
 		return await this.userRepository.delete({ id: userId });
 	}
 
-	async update(userId: string, userDto: UpdateUserDto) {
+	async updateUser(userId: string, userDto: UpdateUserDto) {
 		return await this.userRepository.update({ id: userId }, userDto);
 	}
 
@@ -146,14 +146,50 @@ export class UsersService {
 		return { message: 'Password updated successfully' };
 	}
 
-	async updateAvatar(userId: string, avatarUrl: string): Promise<void> {
+	async uploadAvatar(userId: string, file: Express.Multer.File, folder: string) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
-
 		if (!user) {
-			throw new NotFoundException('User not found');
+			throw new NotFoundException('Пользователь не найден');
 		}
+
+		if (user.avatar) {
+			await this.s3Service.deleteFile(user.avatar);
+		}
+
+		const avatarUrl = await this.s3Service.uploadFile(file, folder);
 
 		user.avatar = avatarUrl;
 		await this.userRepository.save(user);
+
+		return avatarUrl;
 	}
+
+	async checkAndUpdateUserLevel(userId: string) {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+		const currentLevel = user.level;
+
+		const maxLevel = Math.max(...levelRequirements.map((req) => req.level));
+		if (currentLevel >= maxLevel) {
+			return;
+		}
+
+		const nextLevel = levelRequirements.find((req) => req.level === currentLevel + 1);
+
+		if (!nextLevel) {
+			return;
+		}
+
+		if (
+			user.articlesCount >= nextLevel.articles &&
+			user.likesReceivedCount >= nextLevel.likes &&
+			user.commentsReceivedCount >= nextLevel.comments
+		) {
+			user.level++;
+
+			await this.userRepository.save(user);
+
+			console.log(`Пользователь достиг уровня ${user.level}`);
+		}
+	}
+
 }

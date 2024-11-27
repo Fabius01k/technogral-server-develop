@@ -3,8 +3,6 @@ import {
 	Controller,
 	Delete,
 	Get,
-	HttpException,
-	HttpStatus,
 	Param,
 	Post,
 	Put,
@@ -13,11 +11,9 @@ import {
 	ValidationPipe,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { ResponseMessageSuccess } from '../decorators/responseMessage.decorator';
 import { ChangePasswordDto, CreateUserDto, ForgotPasswordDto, UpdateUserDto } from './users.dto';
 import { Public } from '../decorators/public.decorator';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
-import { S3Service } from '../s3/s3.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('members')
@@ -25,38 +21,22 @@ import { FileInterceptor } from '@nestjs/platform-express';
 export class UsersController {
 	constructor(
 		private readonly usersService: UsersService,
-		private readonly s3Service: S3Service
 	) {}
 
 	@Public()
 	@Get('/')
-	@ResponseMessageSuccess('Success. Got all users')
-	async getAll() {
-		return await this.usersService.getAll();
+	async getAllUsers() {
+		return await this.usersService.getAllUsers();
 	}
 
 	@Get('/:userId')
-	@ResponseMessageSuccess('Success. Got user by ID')
-	async getById(@Param('userId') userId: string) {
-		const isExisted = await this.usersService.checkWhetherUserExists(userId);
-
-		if (!isExisted) {
-			throw new HttpException(
-				{
-					status: HttpStatus.NOT_FOUND,
-					error: 'User does not exist',
-				},
-				HttpStatus.NOT_FOUND
-			);
-		}
-
-		return this.usersService.getById(userId);
+	async getUserById(@Param('userId') userId: string) {
+		return await this.usersService.getUserById(userId);
 	}
 
 	@Post('/create')
-	@ResponseMessageSuccess('User created successfully')
-	async create(@Body(new ValidationPipe()) userDto: CreateUserDto) {
-		return this.usersService.create(userDto);
+	async createUser(@Body(new ValidationPipe()) userDto: CreateUserDto) {
+		return this.usersService.createUser(userDto);
 	}
 
 	@Post('/reset-password')
@@ -64,23 +44,21 @@ export class UsersController {
 		return this.usersService.resetPassword(token, newPassword);
 	}
 
-	@Post('/:userId/avatar')
+	@Post('/:userId/upload-avatar')
 	@UseInterceptors(FileInterceptor('file'))
 	async uploadAvatar(@Param('userId') userId: string, @UploadedFile() file: Express.Multer.File) {
 		if (!file) {
 			throw new Error('Файл не прикреплен');
 		}
 
-		const avatarUrl = await this.s3Service.uploadFile(file);
+		const url = await this.usersService.uploadAvatar(userId, file, 'avatars');
 
-		await this.usersService.updateAvatar(userId, avatarUrl);
-
-		return { message: 'Аватарка успешно загружена', avatarUrl };
+		return { message: 'Аватарка успешно загружена', url };
 	}
 
 	@Put('/:userId')
-	async update(@Param('userId') userId: string, @Body(new ValidationPipe()) userDto: UpdateUserDto) {
-		return this.usersService.update(userId, userDto);
+	async updateUser(@Param('userId') userId: string, @Body(new ValidationPipe()) userDto: UpdateUserDto) {
+		return this.usersService.updateUser(userId, userDto);
 	}
 
 	@Put('/:userId/change-password')
@@ -94,7 +72,7 @@ export class UsersController {
 	}
 
 	@Delete('/:userId')
-	async delete(@Param('userId') userId: string) {
-		return this.usersService.delete(userId);
+	async deleteUser(@Param('userId') userId: string) {
+		return this.usersService.deleteUser(userId);
 	}
 }

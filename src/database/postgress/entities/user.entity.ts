@@ -2,8 +2,8 @@ import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, Un
 import { Genders, UserEntity, UserRoles } from '../../../core/entities/user.entity';
 import { Article } from './article.entity';
 import { Comment } from './comment.entity';
-import { CommentUserReaction } from "./comment.userReaction";
-import { ArticleUserReaction } from "./article.userReaction";
+import { CommentUserReaction } from './comment.userReaction';
+import { ArticleUserReaction } from './article.userReaction';
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -45,7 +45,16 @@ export class User extends UserEntity {
 	dislikes: number;
 
 	@Column({ default: 0 })
-	userRank: number;
+	level: number;
+
+	@Column({ default: 0 })
+	articlesCount: number;
+
+	@Column({ default: 0 })
+	likesReceivedCount: number;
+
+	@Column({ default: 0 })
+	commentsReceivedCount: number;
 
 	@Column({ nullable: true })
 	resetPasswordToken: string;
@@ -74,3 +83,11 @@ export class User extends UserEntity {
 	@UpdateDateColumn({ type: 'timestamp', nullable: true, default: null, onUpdate: TIMESTAMP })
 	updatedAt: Date;
 }
+
+export const levelRequirements = [
+	{ level: 1, articles: 10, likes: 20, comments: 50 },
+	{ level: 2, articles: 25, likes: 50, comments: 100 },
+	{ level: 3, articles: 50, likes: 100, comments: 200 },
+	{ level: 4, articles: 100, likes: 200, comments: 500 },
+	{ level: 5, articles: 200, likes: 500, comments: 1000 },
+];
