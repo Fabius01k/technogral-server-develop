@@ -2,8 +2,8 @@ import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, Un
 import { Genders, UserEntity, UserRoles } from '../../../core/entities/user.entity';
 import { Article } from './article.entity';
 import { Comment } from './comment.entity';
-import { CommentUserReaction } from './comment.userReaction';
-import { ArticleUserReaction } from './article.userReaction';
+import { CommentUserReactionEntity } from './comment.userReaction.entity';
+import { ArticleUserReactionEntity } from './article.userReaction.entity';
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -71,11 +71,11 @@ export class User extends UserEntity {
 	@OneToMany(() => Comment, (comment) => comment.wallOwner)
 	wallComments: Comment[];
 
-	@OneToMany(() => CommentUserReaction, (reaction) => reaction.user)
-	commentReactions: CommentUserReaction[];
+	@OneToMany(() => CommentUserReactionEntity, (reaction) => reaction.user)
+	commentReactions: CommentUserReactionEntity[];
 
-	@OneToMany(() => ArticleUserReaction, (reaction) => reaction.user)
-	articleReactions: ArticleUserReaction[];
+	@OneToMany(() => ArticleUserReactionEntity, (reaction) => reaction.user)
+	articleReactions: ArticleUserReactionEntity[];
 
 	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
 	createdAt: Date;

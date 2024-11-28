@@ -6,7 +6,7 @@ import { Repository } from 'typeorm';
 import { User } from '../database/postgress/entities/user.entity';
 import { mapArticleWithComments } from '../utils/map.function';
 import { ArticleTags } from '../core/entities/article.entity';
-import { ArticleUserReaction } from '../database/postgress/entities/article.userReaction';
+import { ArticleUserReactionEntity } from '../database/postgress/entities/article.userReaction.entity';
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { S3Service } from '../s3/s3.service';
 import { UsersService } from '../users/users.service';
@@ -18,8 +18,8 @@ export class ArticleService {
 		private readonly articleRepository: Repository<Article>,
 		@InjectRepository(User)
 		private readonly userRepository: Repository<User>,
-		@InjectRepository(ArticleUserReaction)
-		private readonly articleReactionRepository: Repository<ArticleUserReaction>,
+		@InjectRepository(ArticleUserReactionEntity)
+		private readonly articleReactionRepository: Repository<ArticleUserReactionEntity>,
 		private readonly s3Service: S3Service,
 		private readonly usersService: UsersService
 	) {}
@@ -99,65 +99,6 @@ export class ArticleService {
 			},
 		};
 	}
-
-	// async createReactionToArticle(userId: string, articleId: string, reactionType: ReactionTypes) {
-	// 	const user = await this.userRepository.findOne({ where: { id: userId } });
-	// 	if (!user) throw new NotFoundException('Пользователь не найден');
-	//
-	// 	const article = await this.articleRepository.findOne({ where: { id: articleId } });
-	// 	if (!article) throw new NotFoundException('Новость не найдена');
-	//
-	// 	const existingReaction = await this.articleReactionRepository.findOne({
-	// 		where: { user: { id: userId }, article: { id: articleId } },
-	// 	});
-	//
-	// 	if (existingReaction && existingReaction.type === reactionType) {
-	// 		await this.articleReactionRepository.remove(existingReaction);
-	//
-	// 		if (reactionType === 'like') {
-	// 			article.likes--;
-	// 		} else {
-	// 			article.dislikes--;
-	// 		}
-	//
-	// 		await this.articleRepository.save(article);
-	// 		return true;
-	// 	}
-	//
-	// 	if (existingReaction) {
-	// 		if (existingReaction.type === 'like') {
-	// 			article.likes--;
-	// 			article.dislikes++;
-	// 		} else {
-	// 			article.likes++;
-	// 			article.dislikes--;
-	// 		}
-	//
-	// 		existingReaction.type = reactionType;
-	// 		await this.articleReactionRepository.save(existingReaction);
-	// 		await this.articleRepository.save(article);
-	//
-	// 		return true;
-	// 	}
-	//
-	// 	const newReaction = this.articleReactionRepository.create({
-	// 		user,
-	// 		article,
-	// 		type: reactionType,
-	// 	});
-	//
-	// 	await this.articleReactionRepository.save(newReaction);
-	//
-	// 	if (reactionType === 'like') {
-	// 		article.likes++;
-	// 	} else {
-	// 		article.dislikes++;
-	// 	}
-	//
-	// 	await this.articleRepository.save(article);
-	//
-	// 	return true;
-	// }
 
 	async createReactionToArticle(userId: string, articleId: string, reactionType: ReactionTypes) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });

@@ -6,7 +6,7 @@ import { User } from '../database/postgress/entities/user.entity';
 import { CreateCommentDto, UpdateCommentDto } from './comment.dto';
 import { Article } from '../database/postgress/entities/article.entity';
 import { mapCommentWithReplies } from '../utils/map.function';
-import { CommentUserReaction } from '../database/postgress/entities/comment.userReaction';
+import { CommentUserReactionEntity } from '../database/postgress/entities/comment.userReaction.entity';
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { UsersService } from '../users/users.service';
 
@@ -19,8 +19,8 @@ export class CommentsService {
 		private readonly userRepository: Repository<User>,
 		@InjectRepository(Article)
 		private readonly articleRepository: Repository<Article>,
-		@InjectRepository(CommentUserReaction)
-		private readonly commentReactionRepository: Repository<CommentUserReaction>,
+		@InjectRepository(CommentUserReactionEntity)
+		private readonly commentReactionRepository: Repository<CommentUserReactionEntity>,
 		private readonly usersService: UsersService
 	) {}
 
@@ -98,65 +98,6 @@ export class CommentsService {
 			},
 		};
 	}
-
-	// async createReactionToComment(userId: string, commentId: string, reactionType: ReactionTypes) {
-	// 	const user = await this.userRepository.findOne({ where: { id: userId } });
-	// 	if (!user) throw new NotFoundException('Пользователь не найден');
-	//
-	// 	const comment = await this.commentRepository.findOne({ where: { id: commentId } });
-	// 	if (!comment) throw new NotFoundException('Комментарий не найден');
-	//
-	// 	const existingReaction = await this.commentReactionRepository.findOne({
-	// 		where: { user: { id: userId }, comment: { id: commentId } },
-	// 	});
-	//
-	// 	if (existingReaction && existingReaction.type === reactionType) {
-	// 		await this.commentReactionRepository.remove(existingReaction);
-	//
-	// 		if (reactionType === 'like') {
-	// 			comment.likes--;
-	// 		} else {
-	// 			comment.dislikes--;
-	// 		}
-	//
-	// 		await this.commentRepository.save(comment);
-	// 		return true;
-	// 	}
-	//
-	// 	if (existingReaction) {
-	// 		if (existingReaction.type === 'like') {
-	// 			comment.likes--;
-	// 			comment.dislikes++;
-	// 		} else {
-	// 			comment.likes++;
-	// 			comment.dislikes--;
-	// 		}
-	//
-	// 		existingReaction.type = reactionType;
-	// 		await this.commentReactionRepository.save(existingReaction);
-	// 		await this.commentRepository.save(comment);
-	//
-	// 		return true;
-	// 	}
-	//
-	// 	const newReaction = this.commentReactionRepository.create({
-	// 		user,
-	// 		comment,
-	// 		type: reactionType,
-	// 	});
-	//
-	// 	await this.commentReactionRepository.save(newReaction);
-	//
-	// 	if (reactionType === 'like') {
-	// 		comment.likes++;
-	// 	} else {
-	// 		comment.dislikes++;
-	// 	}
-	//
-	// 	await this.commentRepository.save(comment);
-	//
-	// 	return true;
-	// }
 
 	async createReactionToComment(userId: string, commentId: string, reactionType: ReactionTypes) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });

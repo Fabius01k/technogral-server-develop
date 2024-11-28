@@ -12,7 +12,7 @@ import {
 import { ArticleEntity, ArticleTags } from '../../../core/entities/article.entity';
 import { User } from './user.entity';
 import { Comment } from './comment.entity';
-import { ArticleUserReaction } from "./article.userReaction";
+import { ArticleUserReactionEntity } from "./article.userReaction.entity";
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -38,8 +38,8 @@ export class Article extends ArticleEntity {
 	@OneToMany(() => Comment, (comment) => comment.article)
 	comments: Comment[];
 
-	@OneToMany(() => ArticleUserReaction, (reaction) => reaction.article)
-	reactions: ArticleUserReaction[];
+	@OneToMany(() => ArticleUserReactionEntity, (reaction) => reaction.article)
+	reactions: ArticleUserReactionEntity[];
 
 	@Column({ default: 0 })
 	viewers: number;
@@ -54,7 +54,7 @@ export class Article extends ArticleEntity {
 	dislikes: number;
 
 	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
-	readonly createdAt: Date;
+	createdAt: Date;
 
 	@UpdateDateColumn({ type: 'timestamp', nullable: true, default: null, onUpdate: TIMESTAMP })
 	updatedAt: Date;

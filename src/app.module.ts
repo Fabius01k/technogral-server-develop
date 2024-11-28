@@ -10,6 +10,7 @@ import { TypedEventEmitterModule } from './eventEmitter/typedEventEmitter.module
 import { EMailModule } from './mailer/mailer.module';
 import { CommentModule } from "./comments/comment.module";
 import { ArticleModule } from "./articles/article.module";
+import { BoostersModule } from "./busters/boosters.module";
 
 @Module({
 	imports: [
@@ -19,6 +20,7 @@ import { ArticleModule } from "./articles/article.module";
 		AuthModule,
 		CommentModule,
 		ArticleModule,
+		BoostersModule,
 		EMailModule,
 		TypedEventEmitterModule,
 		EventEmitterModule.forRoot(),

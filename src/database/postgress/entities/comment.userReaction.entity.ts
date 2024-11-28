@@ -3,8 +3,11 @@ import { User } from './user.entity';
 import { Comment } from './comment.entity';
 import { ReactionTypes } from '../../../core/entities/comment.entity';
 
+const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
+const defaultTimestamp = () => TIMESTAMP;
+
 @Entity()
-export class CommentUserReaction {
+export class CommentUserReactionEntity {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
@@ -19,6 +22,7 @@ export class CommentUserReaction {
 	@Column({ type: 'enum', enum: ReactionTypes, nullable: false })
 	type: ReactionTypes;
 
-	@CreateDateColumn()
+	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
 	createdAt: Date;
+
 }

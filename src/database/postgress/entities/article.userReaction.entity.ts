@@ -1,10 +1,13 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { User } from './user.entity';
 import { Article } from './article.entity';
-import { ReactionTypes } from "../../../core/entities/comment.entity";
+import { ReactionTypes } from '../../../core/entities/comment.entity';
+
+const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
+const defaultTimestamp = () => TIMESTAMP;
 
 @Entity()
-export class ArticleUserReaction {
+export class ArticleUserReactionEntity {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
@@ -16,9 +19,9 @@ export class ArticleUserReaction {
 	@JoinColumn({ name: 'articleId' })
 	article: Article;
 
-  @Column({ type: 'enum', enum: ReactionTypes, nullable: false })
-  type: ReactionTypes;
+	@Column({ type: 'enum', enum: ReactionTypes, nullable: false })
+	type: ReactionTypes;
 
-	@CreateDateColumn({ type: 'timestamp' })
+	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
 	createdAt: Date;
 }
