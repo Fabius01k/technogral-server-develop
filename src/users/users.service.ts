@@ -58,6 +58,8 @@ export class UsersService {
 		const user = await this.userRepository.findOneBy({ id: userId });
 		if (!user) throw new NotFoundException('Пользователь не найден');
 
+		console.log(user, "user")
+
 		return user;
 	}
 
@@ -191,5 +193,4 @@ export class UsersService {
 			console.log(`Пользователь достиг уровня ${user.level}`);
 		}
 	}
-
 }

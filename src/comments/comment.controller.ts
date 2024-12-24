@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards, ValidationPipe } from "@nestjs/common";
 import { CreateCommentDto, UpdateCommentDto } from './comment.dto';
 import { CommentsService } from './comment.service';
 import { ReactionTypes } from '../core/entities/comment.entity';
+import { AuthGuard } from "../auth/auth.guard";
 
 @Controller('comments')
 export class CommentsController {
@@ -12,11 +13,13 @@ export class CommentsController {
 		return this.commentsService.getWallCommentsWithReplies(userId);
 	}
 
+	@UseGuards(AuthGuard)
 	@Post()
 	async createComment(@Body(new ValidationPipe()) createCommentDto: CreateCommentDto) {
 		return this.commentsService.createComment(createCommentDto);
 	}
 
+	@UseGuards(AuthGuard)
 	@Post('/:commentId/react')
 	async createReactionToComment(
 		@Param('commentId') commentId: string,
@@ -26,6 +29,7 @@ export class CommentsController {
 		return this.commentsService.createReactionToComment(userId, commentId, reactionType);
 	}
 
+	@UseGuards(AuthGuard)
 	@Put('/:commentId')
 	async updateComment(
 		@Param('commentId') commentId: string,
@@ -34,6 +38,7 @@ export class CommentsController {
 		return this.commentsService.updateComment(commentId, updateCommentDto);
 	}
 
+	@UseGuards(AuthGuard)
 	@Delete('/:commentId')
 	async deleteComment(@Param('commentId') commentId: string) {
 		return this.commentsService.deleteComment(commentId);
