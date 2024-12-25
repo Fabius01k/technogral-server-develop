@@ -11,6 +11,9 @@ export class Booster {
 	@Column()
 	name: string;
 
+	@Column({ nullable: true })
+	subTitle: string;
+
 	@Column('text')
 	description: string;
 
@@ -23,6 +26,6 @@ export class Booster {
 	@Column()
 	type: string;
 
-  @CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
+	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
   createdAt: Date;
 }

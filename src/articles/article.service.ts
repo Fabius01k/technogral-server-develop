@@ -65,6 +65,26 @@ export class ArticleService {
 		return mapArticleWithComments(article);
 	}
 
+	async GetArticlesByUserId(userId: string): Promise<Article[]> {
+		const articles = await this.articleRepository
+			.createQueryBuilder('article')
+			.leftJoinAndSelect('article.author', 'author')
+			.leftJoinAndSelect('article.comments', 'comments')
+			.leftJoinAndSelect('comments.author', 'commentAuthor')
+			.leftJoinAndSelect('comments.replies', 'replies')
+			.leftJoinAndSelect('replies.author', 'replyAuthor')
+			.where('article.authorId = :userId', { userId })
+			.orderBy('comments.createdAt', 'ASC')
+			.addOrderBy('replies.createdAt', 'ASC')
+			.getMany();
+
+		if (!articles) {
+			throw new NotFoundException('Новость не найдена');
+		}
+
+		return articles.map(mapArticleWithComments);
+	}
+
 	async createArticle(createArticleDto: CreateArticleDto) {
 		const { title, previewImage, tag, authorId, content } = createArticleDto;
 

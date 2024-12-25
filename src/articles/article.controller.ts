@@ -9,14 +9,14 @@ import {
 	Query,
 	UploadedFile,
 	UseGuards,
-	UseInterceptors
-} from "@nestjs/common";
+	UseInterceptors,
+} from '@nestjs/common';
 import { CreateArticleDto, GetArticlesQuery, UpdateArticleDto } from './article.dto';
 import { ArticleService } from './article.service';
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
-import { AuthGuard } from "../auth/auth.guard";
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('articles')
 @UseInterceptors(ResponseInterceptor)
@@ -27,6 +27,11 @@ export class ArticleController {
 	async GetAllArticles(@Query() query: GetArticlesQuery) {
 		console.log(query.tag, 'query.tag');
 		return this.articleService.GetAllArticles(query.tag);
+	}
+
+	@Get('/users/:id')
+	async GetArticlesByUserId(@Param('id') id: string) {
+		return this.articleService.GetArticlesByUserId(id);
 	}
 
 	@Get('/:articlesId')
