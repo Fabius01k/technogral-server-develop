@@ -45,4 +45,15 @@ export class EMailService {
 			html: message,
 		});
 	}
+
+	async sendBosterForm(email: string, message: string) {
+		const subject = 'Новый заказ бустера';
+
+		await this.mailerService.sendMail({
+			from: 'Pavel <yournobodu@gmail.com>', // Укажите ваш email
+			to: email,
+			subject,
+			html: message,
+		});
+	}
 }

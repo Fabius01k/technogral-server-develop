@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
 import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateBoosterDto {
@@ -23,13 +23,35 @@ export class CreateBoosterDto {
 }
 
 export class CreateUserBoosterDto {
-	@IsNotEmpty()
-	@IsString()
-	userId: string;
+	@IsArray()
+	@ArrayNotEmpty()
+	@IsString({ each: true })
+	boosterIds: string[];
 
-	@IsNotEmpty()
+	@IsOptional()
 	@IsString()
-	boosterId: string;
+	processor?: string;
+
+	@IsOptional()
+	@IsString()
+	videoCard?: string;
+
+	@IsOptional()
+	@IsString()
+	motherboard?: string;
+
+	@IsOptional()
+	@IsString()
+	ram?: string;
+
+	@IsOptional()
+	@IsString()
+	case?: string;
+
+	@IsOptional()
+	@IsString()
+	cooling?: string;
 }
+
 
 export class UpdateBoosterDto extends PartialType(CreateBoosterDto) {}

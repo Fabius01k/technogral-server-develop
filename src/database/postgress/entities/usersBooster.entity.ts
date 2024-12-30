@@ -7,29 +7,42 @@ import {
 	CreateDateColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { Booster } from './booster.entity';
 import { User } from './user.entity';
-
-const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
-const defaultTimestamp = () => TIMESTAMP;
 
 @Entity('user_boosters')
 export class UserBooster {
-	@PrimaryGeneratedColumn()
-	id: number;
+	@PrimaryGeneratedColumn('uuid')
+	id: string;
 
 	@ManyToOne(() => User)
 	@JoinColumn({ name: 'userId' })
 	user: User;
 
-	@ManyToOne(() => Booster)
-	@JoinColumn({ name: 'boosterId' })
-	booster: Booster;
+	@Column({ type: 'jsonb', default: [] })
+	boosterIds: string[];
 
 	@Column({ default: 'in progress' })
 	status: string;
 
-	@CreateDateColumn({ type: 'timestamp', default: defaultTimestamp })
+	@Column({ nullable: true })
+	processor: string;
+
+	@Column({ nullable: true })
+	videoCard: string;
+
+	@Column({ nullable: true })
+	motherboard: string;
+
+	@Column({ nullable: true })
+	ram: string;
+
+	@Column({ nullable: true })
+	case: string;
+
+	@Column({ nullable: true })
+	cooling: string;
+
+	@CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
 	createdAt: Date;
 
 	@UpdateDateColumn()

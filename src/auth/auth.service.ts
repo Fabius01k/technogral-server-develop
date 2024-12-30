@@ -36,6 +36,16 @@ export class AuthService {
 		return this._getPayload(user, response);
 	}
 
+	async logout(response: Response): Promise<{ message: string }> {
+		response.clearCookie('refreshToken', {
+			httpOnly: true,
+			secure: true,
+			sameSite: 'strict',
+		});
+
+		return { message: 'Вы успешно вышли из системы' };
+	}
+
 	async register({ email, password }: AuthRegisterDto, response: Response): Promise<AuthResponse> {
 		const user = await this.usersService.getByEmail(email);
 

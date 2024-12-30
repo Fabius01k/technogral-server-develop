@@ -8,12 +8,13 @@ import {
 	Put,
 	UseInterceptors,
 	UploadedFile,
-	UseGuards
-} from "@nestjs/common";
+	UseGuards,
+	Request,
+} from '@nestjs/common';
 import { CreateBoosterDto, CreateUserBoosterDto, UpdateBoosterDto } from './boosters.dto';
 import { BoostersService } from './booster.service';
-import { FileInterceptor } from "@nestjs/platform-express";
-import { AuthGuard } from "../auth/auth.guard";
+import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('boosters')
 export class BoostersController {
@@ -42,10 +43,17 @@ export class BoostersController {
 		return this.boostersService.deleteBuster(id);
 	}
 
+	// @UseGuards(AuthGuard)
+	// @Post('order')
+	// orderBooster(@Body() createUserBoosterDto: CreateUserBoosterDto) {
+	// 	return this.boostersService.orderBooster(createUserBoosterDto);
+	// }
+
 	@UseGuards(AuthGuard)
-	@Post('order')
-	orderBooster(@Body() createUserBoosterDto: CreateUserBoosterDto) {
-		return this.boostersService.orderBooster(createUserBoosterDto);
+	@Post('order-req')
+	reqOrderBooster(@Request() req: Request, @Body() createUserBoosterDto: CreateUserBoosterDto) {
+		const userId = req['userId'];
+		return this.boostersService.orderBooster(createUserBoosterDto, userId);
 	}
 
 	@UseGuards(AuthGuard)

@@ -1,6 +1,6 @@
 import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { levelRequirements, User } from "../database/postgress/entities/user.entity";
+import { levelRequirements, User } from '../database/postgress/entities/user.entity';
 import { Repository } from 'typeorm';
 import { CreateUserDto, TChangePasswordDto, UpdateUserDto } from './users.dto';
 import { TypedEventEmitterService } from '../eventEmitter/typedEventEmitter.service';
@@ -58,7 +58,7 @@ export class UsersService {
 		const user = await this.userRepository.findOneBy({ id: userId });
 		if (!user) throw new NotFoundException('Пользователь не найден');
 
-		console.log(user, "user")
+		console.log(user, 'user');
 
 		return user;
 	}
@@ -128,6 +128,44 @@ export class UsersService {
 		return { message: 'Password recovery email sent successfully' };
 	}
 
+	async changeEmailRequest(id: string) {
+		const user = await this.userRepository.findOneBy({ id: id });
+
+		if (!user) {
+			throw new NotFoundException('Пользователь не найден');
+		}
+
+		const resetToken = randomBytes(32).toString('hex');
+		const resetTokenExpires = new Date();
+		resetTokenExpires.setHours(resetTokenExpires.getHours() + 1);
+
+		await this.userRepository.update(
+			{ id: user.id },
+			{
+				resetEmailToken: resetToken,
+				resetEmailExpires: resetTokenExpires,
+			}
+		);
+
+		// const resetLink = `https://your-app.com/reset-password?token=${resetToken}`;
+		// console.log(2222);
+		//
+		// await this.eMailService.sendPasswordRecoveryEmail({
+		// 	to: email,
+		// 	link: resetLink,
+		// 	name: user.nickname,
+		// });
+
+		const message = `<h1>Password recovery</h1>
+        <p>The code for changing the mail, specify it when entering a new mail. - ${resetToken}
+            <a href='https://your-app.com/reset-password?token=${resetToken}'></a>
+        </p>`;
+
+		await this.eMailService.sendPasswordRecoveryEmail(user.email, message);
+
+		return { message: 'Email change email sent successfully' };
+	}
+
 	async resetPassword(token: string, newPassword: string) {
 		const user = await this.userRepository.findOneBy({ resetPasswordToken: token });
 
@@ -146,6 +184,25 @@ export class UsersService {
 		);
 
 		return { message: 'Password updated successfully' };
+	}
+
+	async changeEmail(email: string, token: string) {
+		const user = await this.userRepository.findOneBy({ resetEmailToken: token });
+
+		if (!user || new Date() > user.resetEmailExpires) {
+			throw new Error('Invalid or expired token');
+		}
+
+		await this.userRepository.update(
+			{ id: user.id },
+			{
+				email: email,
+				resetEmailToken: null,
+				resetEmailExpires: null,
+			}
+		);
+
+		return { message: 'Email updated successfully' };
 	}
 
 	async uploadAvatar(userId: string, file: Express.Multer.File, folder: string) {
@@ -192,5 +249,41 @@ export class UsersService {
 
 			console.log(`Пользователь достиг уровня ${user.level}`);
 		}
+	}
+
+	async generateLinks(
+		userId: string,
+		host: string,
+		protocol: string
+	): Promise<{ permanentLink: string; shortLink: string }> {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+		if (!user) {
+			throw new NotFoundException('User not found');
+		}
+
+		const baseUrl = `${protocol || 'http'}://${host}`;
+		const permanentLink = `${baseUrl}/members/${user.id}`;
+		const shortLink = `${baseUrl}/u/${this.generateShortCode()}`;
+
+		user.permanentLink = permanentLink;
+		user.shortLink = shortLink;
+
+		await this.userRepository.save(user);
+
+		return { permanentLink, shortLink };
+	}
+
+	async findByShortLink(shortCode: string): Promise<User | null> {
+		const shortLink = `/u/${shortCode}`;
+		console.log(shortLink, "shortLink");
+		const user = await this.userRepository.findOne({ where: { shortLink } });
+		if (!user) {
+			throw new NotFoundException('User not found');
+		}
+		return user;
+	}
+
+	private generateShortCode(): string {
+		return Math.random().toString(36).substring(2, 10);
 	}
 }

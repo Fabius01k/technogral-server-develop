@@ -62,6 +62,18 @@ export class User extends UserEntity {
 	@Column({ type: 'timestamp', nullable: true })
 	resetPasswordExpires: Date;
 
+	@Column({ nullable: true })
+	resetEmailToken: string;
+
+	@Column({ type: 'timestamp', nullable: true })
+	resetEmailExpires: Date;
+
+	@Column({ unique: true, nullable: true })
+	permanentLink: string;
+
+	@Column({ unique: true, nullable: true })
+	shortLink: string;
+
 	@OneToMany(() => Article, (article) => article.author)
 	articles: Article[];
 

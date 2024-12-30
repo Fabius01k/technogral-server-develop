@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Booster } from '../database/postgress/entities/booster.entity';
 import { UserBooster } from '../database/postgress/entities/usersBooster.entity';
 import { CreateBoosterDto, CreateUserBoosterDto, UpdateBoosterDto } from './boosters.dto';
-import { S3Service } from "../s3/s3.service";
+import { S3Service } from '../s3/s3.service';
+import { User } from '../database/postgress/entities/user.entity';
+import { EMailService } from '../mailer/mailer.service';
 
 @Injectable()
 export class BoostersService {
@@ -13,7 +15,10 @@ export class BoostersService {
 		private boosterRepository: Repository<Booster>,
 		@InjectRepository(UserBooster)
 		private userBoosterRepository: Repository<UserBooster>,
-		private readonly s3Service: S3Service,
+		@InjectRepository(User)
+		private userRepository: Repository<User>,
+		private readonly eMailService: EMailService,
+		private readonly s3Service: S3Service
 	) {}
 
 	findAllBusters() {
@@ -58,16 +63,56 @@ export class BoostersService {
 		return true;
 	}
 
-	async orderBooster(createUserBoosterDto: CreateUserBoosterDto) {
-		const { userId, boosterId } = createUserBoosterDto;
+	async orderBooster(createUserBoosterDto: CreateUserBoosterDto, userId: string) {
+		const { boosterIds, processor, videoCard, motherboard, ram, case: pcCase, cooling } = createUserBoosterDto;
+
+		const user = await this.userRepository.findOne({
+			where: { id: userId },
+			select: ['email', 'nickname'],
+		});
+
+		if (!user) {
+			throw new NotFoundException('Пользователь не найден');
+		}
+
+		const boosters = await this.boosterRepository.findBy({
+			id: In(boosterIds),
+		});
+
+		const boosterNames = boosters.map((booster) => booster.name);
 
 		const userBooster = this.userBoosterRepository.create({
 			user: { id: userId },
-			booster: { id: boosterId },
+			boosterIds,
 			status: 'in progress',
+			processor,
+			videoCard,
+			motherboard,
+			ram,
+			case: pcCase,
+			cooling,
 		});
 
-		return this.userBoosterRepository.save(userBooster);
+		await this.userBoosterRepository.save(userBooster);
+
+		const message = `
+        <h1>Новый заказ от пользователя ${user.nickname || 'Без имени'}</h1>
+        <p>Email: ${user.email}</p>
+        <p>Процессор: ${processor}</p>
+        <p>Видеокарта: ${videoCard}</p>
+        <p>Материнская плата: ${motherboard}</p>
+        <p>Оперативная память: ${ram}</p>
+        <p>Корпус: ${pcCase}</p>
+        <p>Охлаждение: ${cooling}</p>
+        <h2>Список бустеров:</h2>
+        <ul>
+            ${boosterNames.map((name) => `<li>${name}</li>`).join('')}
+        </ul>
+    `;
+
+		await this.eMailService.sendBosterForm('destroer13388@gmail.com', message);
+
+		return userBooster;
 	}
 
 	async uploadBoosterImage(boosterId: string, file: Express.Multer.File, folder: string): Promise<string> {

@@ -6,7 +6,6 @@ import {
 	Param,
 	Post,
 	Put,
-	UnauthorizedException,
 	UploadedFile,
 	UseGuards,
 	UseInterceptors,
@@ -14,14 +13,14 @@ import {
 	Request,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { ChangePasswordDto, CreateUserDto, ForgotPasswordDto, UpdateUserDto } from './users.dto';
+import { ChangeEmailDto, ChangePasswordDto, CreateUserDto, ForgotPasswordDto, UpdateUserDto } from './users.dto';
 import { Public } from '../decorators/public.decorator';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('members')
-@UseInterceptors(ResponseInterceptor)
+// @UseInterceptors(ResponseInterceptor)
 export class UsersController {
 	constructor(private readonly usersService: UsersService) {}
 
@@ -37,7 +36,8 @@ export class UsersController {
 		const userId = req['userId'];
 		const user = await this.usersService.getUserById(userId);
 
-		const { password, resetPasswordToken, resetPasswordExpires, ...userResponse } = user;
+		const { password, resetPasswordToken, resetPasswordExpires, resetEmailToken, resetEmailExpires, ...userResponse } =
+			user;
 		return userResponse;
 	}
 
@@ -84,14 +84,42 @@ export class UsersController {
 	}
 
 	@UseGuards(AuthGuard)
+	@Put('/:userId/change-email-req')
+	async changeEmailRequest(@Param('userId') userId: string) {
+		return this.usersService.changeEmailRequest(userId);
+	}
+
+	@UseGuards(AuthGuard)
 	@Put('/:userId/forgot-password')
 	async forgotPassword(@Body(new ValidationPipe()) forgotPasswordDto: ForgotPasswordDto) {
 		return this.usersService.forgotPassword(forgotPasswordDto.email);
 	}
 
 	@UseGuards(AuthGuard)
+	@Put('/:userId/change-email')
+	async changeEmail(@Body(new ValidationPipe()) emailDto: ChangeEmailDto) {
+		const { newEmail, token } = emailDto;
+		return this.usersService.changeEmail(newEmail, token);
+	}
+
+	@UseGuards(AuthGuard)
 	@Delete('/:userId')
 	async deleteUser(@Param('userId') userId: string) {
 		return this.usersService.deleteUser(userId);
+	}
+
+	@UseGuards(AuthGuard)
+	@Post('/generate-links')
+	async generateLinks(@Request() req: Request): Promise<{ permanentLink: string; shortLink: string }> {
+		const userId = req['userId'];
+		const host = req.headers['host'];
+		const protocol = req.headers['x-forwarded-proto'] || 'http';
+		return this.usersService.generateLinks(userId, host, protocol);
+	}
+
+	@Get('/u/:shortCode')
+	async getUserByShortLink(@Param('shortCode') shortCode: string) {
+		return await this.usersService.findByShortLink(shortCode);
+
 	}
 }

@@ -1,6 +1,6 @@
 import { OmitType, PartialType, PickType } from "@nestjs/mapped-types";
 import { Genders, UserEntity, UserRoles } from '../core/entities/user.entity';
-import { IsDate, isEmail, IsEmail, IsEnum, IsNumber, IsString, Length } from "class-validator";
+import { IsDate, isEmail, IsEmail, IsEnum, IsNotEmpty, IsNumber, IsString, Length } from "class-validator";
 
 export class UserDto implements Partial<Omit<UserEntity, 'id' | 'updatedAt' | 'createdAt'>> {
 	@IsString()
@@ -53,4 +53,13 @@ export type TForgotPasswordDto = Pick<UserEntity, 'email'> & NonNullable<unknown
 export class ForgotPasswordDto implements TForgotPasswordDto {
 	@IsEmail({}, { message: 'Invalid email address' })
 	email: string;
+}
+
+export class ChangeEmailDto {
+	@IsEmail({}, { message: 'Invalid email address' })
+	@IsNotEmpty({ message: 'Email should not be empty' })
+	newEmail: string;
+
+	@IsNotEmpty({ message: 'Token should not be empty' })
+	token: string;
 }
