@@ -4,15 +4,17 @@ import {
 	Entity,
 	JoinColumn,
 	JoinTable,
+	ManyToMany,
 	ManyToOne,
 	OneToMany,
 	PrimaryGeneratedColumn,
 	UpdateDateColumn,
 } from 'typeorm';
-import { ArticleEntity, ArticleTags } from '../../../core/entities/article.entity';
+import { ArticleEntity } from '../../../core/entities/article.entity';
 import { User } from './user.entity';
 import { Comment } from './comment.entity';
-import { ArticleUserReactionEntity } from "./article.userReaction.entity";
+import { ArticleUserReactionEntity } from './article.userReaction.entity';
+import { Tag } from './articleTag.entity';
 
 const TIMESTAMP = 'CURRENT_TIMESTAMP(6)';
 const defaultTimestamp = () => TIMESTAMP;
@@ -28,8 +30,9 @@ export class Article extends ArticleEntity {
 	@Column()
 	previewImage: string;
 
-	@Column({ enum: ArticleTags, nullable: true, default: null })
-	tag: ArticleTags;
+	@ManyToMany(() => Tag, (tag) => tag.articles, { cascade: true })
+	@JoinTable()
+	tags: Tag[];
 
 	@ManyToOne(() => User, (user) => user.articles)
 	@JoinColumn({ name: 'authorId' })

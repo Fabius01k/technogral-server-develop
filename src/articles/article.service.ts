@@ -1,8 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Article } from '../database/postgress/entities/article.entity';
 import { CreateArticleDto, UpdateArticleDto } from './article.dto';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { User } from '../database/postgress/entities/user.entity';
 import { mapArticleWithComments } from '../utils/map.function';
 import { ArticleTags } from '../core/entities/article.entity';
@@ -10,6 +10,7 @@ import { ArticleUserReactionEntity } from '../database/postgress/entities/articl
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { S3Service } from '../s3/s3.service';
 import { UsersService } from '../users/users.service';
+import { Tag } from '../database/postgress/entities/articleTag.entity';
 
 @Injectable()
 export class ArticleService {
@@ -20,12 +21,15 @@ export class ArticleService {
 		private readonly userRepository: Repository<User>,
 		@InjectRepository(ArticleUserReactionEntity)
 		private readonly articleReactionRepository: Repository<ArticleUserReactionEntity>,
+		@InjectRepository(Tag)
+		private readonly tagRepository: Repository<Tag>,
 		private readonly s3Service: S3Service,
 		private readonly usersService: UsersService
 	) {}
 
-	async GetAllArticles(tag?: ArticleTags): Promise<Article[]> {
-		console.log(tag, 'tag');
+	async GetAllArticles(tags?: string[]): Promise<Article[]> {
+		console.log(tags, 'tags');
+
 		const query = this.articleRepository
 			.createQueryBuilder('article')
 			.leftJoinAndSelect('article.author', 'author')
@@ -33,12 +37,13 @@ export class ArticleService {
 			.leftJoinAndSelect('comments.author', 'commentAuthor')
 			.leftJoinAndSelect('comments.replies', 'replies')
 			.leftJoinAndSelect('replies.author', 'replyAuthor')
+			.leftJoinAndSelect('article.tags', 'tag')
 			.orderBy('article.createdAt', 'DESC')
 			.addOrderBy('comments.createdAt', 'ASC')
 			.addOrderBy('replies.createdAt', 'ASC');
 
-		if (tag) {
-			query.where('article.tag = :tag', { tag });
+		if (tags && tags.length > 0) {
+			query.andWhere('tag.name IN (:...tags)', { tags });
 		}
 
 		const articles = await query.getMany();
@@ -53,6 +58,7 @@ export class ArticleService {
 			.leftJoinAndSelect('comments.author', 'commentAuthor')
 			.leftJoinAndSelect('comments.replies', 'replies')
 			.leftJoinAndSelect('replies.author', 'replyAuthor')
+			.leftJoinAndSelect('article.tags', 'tags')
 			.where('article.id = :id', { id })
 			.orderBy('comments.createdAt', 'ASC')
 			.addOrderBy('replies.createdAt', 'ASC')
@@ -73,8 +79,10 @@ export class ArticleService {
 			.leftJoinAndSelect('comments.author', 'commentAuthor')
 			.leftJoinAndSelect('comments.replies', 'replies')
 			.leftJoinAndSelect('replies.author', 'replyAuthor')
+			.leftJoinAndSelect('article.tags', 'tags')
 			.where('article.authorId = :userId', { userId })
-			.orderBy('comments.createdAt', 'ASC')
+			.orderBy('article.createdAt', 'DESC')
+			.addOrderBy('comments.createdAt', 'ASC')
 			.addOrderBy('replies.createdAt', 'ASC')
 			.getMany();
 
@@ -86,15 +94,23 @@ export class ArticleService {
 	}
 
 	async createArticle(createArticleDto: CreateArticleDto) {
-		const { title, previewImage, tag, authorId, content } = createArticleDto;
+		const { title, previewImage, tags, authorId, content } = createArticleDto;
 
 		const author = await this.userRepository.findOne({ where: { id: authorId } });
 		if (!author) throw new NotFoundException('Пользователь не найден');
 
+		const tagEntities = await this.tagRepository.find({
+			where: { name: In(tags) },
+		});
+
+		if (tagEntities.length !== tags.length) {
+			throw new BadRequestException('Один или несколько указанных тегов не найдены');
+		}
+
 		const article = this.articleRepository.create({
 			title,
 			previewImage,
-			tag,
+			tags: tagEntities,
 			author,
 			content,
 		});
@@ -112,6 +128,7 @@ export class ArticleService {
 			previewImage: savedArticle.previewImage,
 			content: savedArticle.content,
 			createdAt: savedArticle.createdAt,
+			tags: savedArticle.tags.map((tag) => tag.name),
 			author: {
 				id: savedArticle.author?.id,
 				nickname: savedArticle.author?.nickname,
@@ -208,15 +225,43 @@ export class ArticleService {
 		return previewImage;
 	}
 
+	// async updateArticle(id: string, updateArticleDto: UpdateArticleDto) {
+	// 	const article = await this.articleRepository.preload({
+	// 		id,
+	// 		...updateArticleDto,
+	// 	});
+	//
+	// 	if (!article) {
+	// 		throw new NotFoundException('Новость не найдена');
+	// 	}
+	// 	article.updatedAt = new Date();
+	// 	return this.articleRepository.save(article);
+	// }
+
 	async updateArticle(id: string, updateArticleDto: UpdateArticleDto) {
+		const { tags, ...rest } = updateArticleDto;
+
 		const article = await this.articleRepository.preload({
 			id,
-			...updateArticleDto,
+			...rest,
 		});
 
 		if (!article) {
 			throw new NotFoundException('Новость не найдена');
 		}
+
+		if (tags && tags.length > 0) {
+			const tagEntities = await this.tagRepository.find({
+				where: { name: In(tags) },
+			});
+
+			if (tagEntities.length !== tags.length) {
+				throw new BadRequestException('Один или несколько указанных тегов не найдены');
+			}
+
+			article.tags = tagEntities;
+		}
+
 		article.updatedAt = new Date();
 		return this.articleRepository.save(article);
 	}

@@ -1,4 +1,5 @@
 import { TNullable } from '../../types/advanced.types';
+import { Tag } from "../../database/postgress/entities/articleTag.entity";
 
 export enum ArticleTags {
 	GAMES = 'gamesAndEntertainment',
@@ -18,6 +19,6 @@ export abstract class ArticleEntity {
 	viewers: number;
 	createdAt: Date;
 	updatedAt: TNullable<Date>;
-	tags: string[];
+	tags: Tag[];
 	content: string;
 }

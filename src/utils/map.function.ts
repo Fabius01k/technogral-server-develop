@@ -18,6 +18,25 @@ export function mapCommentWithReplies(comment: Comment): any {
 	};
 }
 
+// export function mapArticleWithComments(article: Article): any {
+// 	return {
+// 		id: article.id,
+// 		title: article.title,
+// 		previewImage: article.previewImage,
+// 		content: article.content,
+// 		likes: article.likes,
+// 		dislikes: article.dislikes,
+// 		createdAt: article.createdAt,
+// 		author: {
+// 			id: article.author?.id,
+// 			nickname: article.author?.nickname,
+// 			avatar: article.author?.avatar,
+// 		},
+// 		comments: article.comments ? article.comments.map(mapCommentWithReplies) : [],
+// 		tags: article.tags ? article.tags.map((tag) => tag.name) : [],
+// 	};
+// }
+
 export function mapArticleWithComments(article: Article): any {
 	return {
 		id: article.id,
@@ -33,5 +52,6 @@ export function mapArticleWithComments(article: Article): any {
 			avatar: article.author?.avatar,
 		},
 		comments: article.comments ? article.comments.map(mapCommentWithReplies) : [],
+		tags: article.tags ? article.tags.map((tag) => tag.name) : [],
 	};
 }

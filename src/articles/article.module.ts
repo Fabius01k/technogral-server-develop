@@ -6,9 +6,10 @@ import { ArticleService } from './article.service';
 import { UsersModule } from '../users/users.module';
 import { ArticleUserReactionEntity } from '../database/postgress/entities/article.userReaction.entity';
 import { S3Module } from '../s3/s3.module';
+import {  Tag } from "../database/postgress/entities/articleTag.entity";
 
 @Module({
-	imports: [TypeOrmModule.forFeature([Article, ArticleUserReactionEntity]), UsersModule, S3Module],
+	imports: [TypeOrmModule.forFeature([Article, ArticleUserReactionEntity, Tag]), UsersModule, S3Module],
 	controllers: [ArticleController],
 	providers: [ArticleService],
 	exports: [ArticleService, TypeOrmModule],

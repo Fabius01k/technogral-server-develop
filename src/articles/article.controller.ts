@@ -19,14 +19,20 @@ import { ResponseInterceptor } from '../interceptors/response.interceptor';
 import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('articles')
-@UseInterceptors(ResponseInterceptor)
+// @UseInterceptors(ResponseInterceptor)
 export class ArticleController {
 	constructor(private readonly articleService: ArticleService) {}
 
+	// @Get()
+	// async GetAllArticles(@Query() query: GetArticlesQuery) {
+	// 	console.log(query.tag, 'query.tag');
+	// 	return this.articleService.GetAllArticles(query.tag);
+	// }
 	@Get()
-	async GetAllArticles(@Query() query: GetArticlesQuery) {
-		console.log(query.tag, 'query.tag');
-		return this.articleService.GetAllArticles(query.tag);
+	async GetAllArticles(@Query('tags') tags: string) {
+		console.log(tags, 'query.tags');
+		const tagArray = tags ? tags.split(',') : [];
+		return this.articleService.GetAllArticles(tagArray);
 	}
 
 	@Get('/users/:id')

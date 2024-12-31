@@ -1,6 +1,6 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { ArticleTags } from '../core/entities/article.entity';
-import { PartialType } from "@nestjs/mapped-types";
+import { PartialType } from '@nestjs/mapped-types';
 
 export class CreateArticleDto {
 	@IsNotEmpty()
@@ -12,8 +12,9 @@ export class CreateArticleDto {
 	previewImage: string;
 
 	@IsOptional()
-	@IsEnum(ArticleTags)
-	tag?: ArticleTags;
+	@IsArray()
+	@IsString({ each: true })
+	tags: string[];
 
 	@IsNotEmpty()
 	@IsString()

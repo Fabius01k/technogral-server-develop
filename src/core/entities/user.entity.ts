@@ -34,6 +34,8 @@ export abstract class UserEntity {
 	userRank: number;
 	resetPasswordToken: string;
 	resetPasswordExpires: Date;
+	resetEmailToken: string;
+	resetEmailExpires: Date;
 	createdAt: Date;
 	updatedAt: TNullable<Date>;
 }
