@@ -46,6 +46,11 @@ export class UsersController {
 		return await this.usersService.getUserById(userId);
 	}
 
+	@Get(':userId/progress')
+	async getUserProgress(@Param('userId') userId: string) {
+		return this.usersService.getUserProgress(userId);
+	}
+
 	@UseGuards(AuthGuard)
 	@Post('/create')
 	async createUser(@Body(new ValidationPipe()) userDto: CreateUserDto) {

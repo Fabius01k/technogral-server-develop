@@ -223,6 +223,48 @@ export class UsersService {
 		return avatarUrl;
 	}
 
+	async getUserProgress(userId: string) {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+
+		if (!user) {
+			throw new NotFoundException('Пользователь не найден');
+		}
+
+		const currentLevel = user.level;
+		const nextLevel = levelRequirements.find((req) => req.level === currentLevel + 1);
+
+		if (!nextLevel) {
+			return {
+				level: currentLevel,
+				message: 'Вы достигли максимального уровня',
+				progress: {
+					articles: 200,
+					likes: 500,
+					comments: 1000,
+				},
+			};
+		}
+
+		const articlesProgress = Math.min((user.articlesCount / nextLevel.articles) * 100, 100);
+		const likesProgress = Math.min((user.likesReceivedCount / nextLevel.likes) * 100, 100);
+		const commentsProgress = Math.min((user.commentsReceivedCount / nextLevel.comments) * 100, 100);
+
+		return {
+			level: currentLevel,
+			nextLevel: currentLevel + 1,
+			progress: {
+				articles: Math.round(articlesProgress),
+				likes: Math.round(likesProgress),
+				comments: Math.round(commentsProgress),
+			},
+			remaining: {
+				articles: Math.max(nextLevel.articles - user.articlesCount, 0),
+				likes: Math.max(nextLevel.likes - user.likesReceivedCount, 0),
+				comments: Math.max(nextLevel.comments - user.commentsReceivedCount, 0),
+			},
+		};
+	}
+
 	async checkAndUpdateUserLevel(userId: string) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
 		const currentLevel = user.level;
@@ -275,7 +317,7 @@ export class UsersService {
 
 	async findByShortLink(shortCode: string): Promise<User | null> {
 		const shortLink = `/u/${shortCode}`;
-		console.log(shortLink, "shortLink");
+		console.log(shortLink, 'shortLink');
 		const user = await this.userRepository.findOne({ where: { shortLink } });
 		if (!user) {
 			throw new NotFoundException('User not found');
