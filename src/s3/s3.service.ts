@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { S3Config } from './s3.config';
 import { v4 as uuid } from 'uuid';
 
@@ -28,7 +28,7 @@ export class S3Service {
 			})
 		);
 
-		return `https://${S3Config.bucketName}.storage.timeweb.cloud.net/${key}`;
+		return `https://s3.timeweb.cloud/${S3Config.bucketName}/${key}`;
 	}
 
 	async deleteFile(fileUrl: string): Promise<void> {
