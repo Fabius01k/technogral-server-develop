@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, Unique, UpdateDateColumn } from 'typeorm';
-import { Genders, UserEntity, UserRoles } from '../../../core/entities/user.entity';
+import { UserEntity, UserRoles } from '../../../core/entities/user.entity';
 import { Article } from './article.entity';
 import { Comment } from './comment.entity';
 import { CommentUserReactionEntity } from './comment.userReaction.entity';
@@ -20,7 +20,7 @@ export class User extends UserEntity {
 	@Column({ unique: true, nullable: true })
 	email: string;
 
-	@Column({ nullable: true, unique: true })
+	@Column({ nullable: true })
 	nickname: string;
 
 	@Column()
@@ -32,8 +32,8 @@ export class User extends UserEntity {
 	@Column({ nullable: true })
 	avatar: string;
 
-	@Column({ enum: Genders, default: Genders.NOT_SPECIFIED })
-	gender: Genders;
+	@Column({ nullable: true })
+	gender: string;
 
 	@Column({ enum: UserRoles, default: UserRoles.NEWBEE })
 	role: UserRoles;
@@ -73,6 +73,15 @@ export class User extends UserEntity {
 
 	@Column({ unique: true, nullable: true })
 	shortLink: string;
+
+	@Column({ nullable: true })
+	occupation: string;
+
+	@Column({ nullable: true })
+	timezone: string;
+
+	@Column({ nullable: true })
+	interests: string;
 
 	@OneToMany(() => Article, (article) => article.author)
 	articles: Article[];

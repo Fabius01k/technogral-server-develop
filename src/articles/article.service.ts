@@ -225,18 +225,14 @@ export class ArticleService {
 		return previewImage;
 	}
 
-	// async updateArticle(id: string, updateArticleDto: UpdateArticleDto) {
-	// 	const article = await this.articleRepository.preload({
-	// 		id,
-	// 		...updateArticleDto,
-	// 	});
-	//
-	// 	if (!article) {
-	// 		throw new NotFoundException('Новость не найдена');
-	// 	}
-	// 	article.updatedAt = new Date();
-	// 	return this.articleRepository.save(article);
-	// }
+	async incrementViewers(articleId: string): Promise<void> {
+		const article = await this.articleRepository.findOne({ where: { id: articleId } });
+		if (!article) {
+			throw new NotFoundException('Article not found');
+		}
+
+		await this.articleRepository.increment({ id: articleId }, 'viewers', 1);
+	}
 
 	async updateArticle(id: string, updateArticleDto: UpdateArticleDto) {
 		const { tags, ...rest } = updateArticleDto;

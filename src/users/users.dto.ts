@@ -1,6 +1,6 @@
-import { OmitType, PartialType, PickType } from "@nestjs/mapped-types";
+import { OmitType, PartialType, PickType } from '@nestjs/mapped-types';
 import { Genders, UserEntity, UserRoles } from '../core/entities/user.entity';
-import { IsDate, isEmail, IsEmail, IsEnum, IsNotEmpty, IsNumber, IsString, Length } from "class-validator";
+import { IsDate, IsEmail, IsEnum, IsNotEmpty, IsNumber, IsString, Length } from 'class-validator';
 
 export class UserDto implements Partial<Omit<UserEntity, 'id' | 'updatedAt' | 'createdAt'>> {
 	@IsString()
@@ -19,8 +19,8 @@ export class UserDto implements Partial<Omit<UserEntity, 'id' | 'updatedAt' | 'c
 	@IsDate()
 	birthday: Date;
 
-	@IsEnum(Genders)
-	gender: Genders;
+	@IsString()
+	gender: string;
 
 	@IsEnum(UserRoles)
 	role: UserRoles;
@@ -33,6 +33,15 @@ export class UserDto implements Partial<Omit<UserEntity, 'id' | 'updatedAt' | 'c
 
 	@IsNumber()
 	dislikes: number;
+
+	@IsString()
+	occupation?: string;
+
+	@IsString()
+	interests?: string;
+
+	@IsString()
+	timezone?: string;
 }
 
 export class CreateUserDto extends PickType(UserDto, ['email', 'password']) {}

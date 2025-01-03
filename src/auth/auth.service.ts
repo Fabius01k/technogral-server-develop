@@ -1,10 +1,9 @@
 import {
-	BadRequestException,
+	BadRequestException, Body,
 	ConflictException,
 	ForbiddenException,
 	Injectable,
 	NotFoundException,
-	UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +12,7 @@ import { comparePasswords, getPasswordHash } from 'src/utils/password.utils';
 import { AuthLoginDto, AuthRegisterDto, AuthResponse } from './auth.dto';
 import { UserEntity } from 'src/core/entities/user.entity';
 import { JWT_CONFIG } from './auth.constants';
+import { User } from "../database/postgress/entities/user.entity";
 
 @Injectable()
 export class AuthService {
@@ -21,8 +21,8 @@ export class AuthService {
 		private jwtService: JwtService
 	) {}
 
-	async login({ emailOrNickname, password }: AuthLoginDto, response: Response): Promise<AuthResponse> {
-		const user = await this.usersService.getByEmailOrNickname(emailOrNickname);
+	async login({ emailOrLogin, password }: AuthLoginDto, response: Response): Promise<AuthResponse> {
+		const user = await this.usersService.getByEmailOrLogin(emailOrLogin);
 
 		if (!user) {
 			throw new NotFoundException('Пользователя с таким никнеймом или email не найдено');
@@ -46,18 +46,21 @@ export class AuthService {
 		return { message: 'Вы успешно вышли из системы' };
 	}
 
-	async register({ email, password }: AuthRegisterDto, response: Response): Promise<AuthResponse> {
-		const user = await this.usersService.getByEmail(email);
+	async register(@Body() authRegisterDto: AuthRegisterDto, response: Response): Promise<AuthResponse> {
+		const user = await this.usersService.getByEmail(authRegisterDto.email);
 
 		if (user) {
 			throw new ConflictException('Такой пользователь уже существует');
 		}
 
-		const hash = await getPasswordHash(password);
+		const hash = await getPasswordHash(authRegisterDto.password);
 
-		const newUser = await this.usersService.createUser({
-			email,
+		const newUser: User = await this.usersService.createUser({
+			email: authRegisterDto.email,
 			password: hash,
+			nickname: authRegisterDto.nickname,
+			gender: authRegisterDto.gender,
+			birthday: authRegisterDto.birthday,
 		});
 
 		if (!newUser) {

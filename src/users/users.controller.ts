@@ -18,6 +18,7 @@ import { Public } from '../decorators/public.decorator';
 import { ResponseInterceptor } from '../interceptors/response.interceptor';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
+import { AuthRegisterDto, UserCreateLoginDto } from "../auth/auth.dto";
 
 @Controller('members')
 // @UseInterceptors(ResponseInterceptor)
@@ -53,7 +54,7 @@ export class UsersController {
 
 	@UseGuards(AuthGuard)
 	@Post('/create')
-	async createUser(@Body(new ValidationPipe()) userDto: CreateUserDto) {
+	async createUser(@Body(new ValidationPipe()) userDto: AuthRegisterDto) {
 		return this.usersService.createUser(userDto);
 	}
 
@@ -74,6 +75,19 @@ export class UsersController {
 		const url = await this.usersService.uploadAvatar(userId, file, 'avatars');
 
 		return { message: 'Аватарка успешно загружена', url };
+	}
+
+	@UseGuards(AuthGuard)
+	@Put('/update-login')
+	async updateLogin(
+		@Body(new ValidationPipe()) loginDto: UserCreateLoginDto,
+		@Request() req: Request
+	): Promise<{ shortLink: string }> {
+		const userId = req['userId'];
+		const host = req.headers['host'];
+		const protocol = req.headers['x-forwarded-proto'] || 'http';
+
+		return this.usersService.updateLoginAndShortLink(userId, loginDto, host, protocol);
 	}
 
 	@UseGuards(AuthGuard)
@@ -113,18 +127,17 @@ export class UsersController {
 		return this.usersService.deleteUser(userId);
 	}
 
-	@UseGuards(AuthGuard)
-	@Post('/generate-links')
-	async generateLinks(@Request() req: Request): Promise<{ permanentLink: string; shortLink: string }> {
-		const userId = req['userId'];
-		const host = req.headers['host'];
-		const protocol = req.headers['x-forwarded-proto'] || 'http';
-		return this.usersService.generateLinks(userId, host, protocol);
-	}
-
-	@Get('/u/:shortCode')
-	async getUserByShortLink(@Param('shortCode') shortCode: string) {
-		return await this.usersService.findByShortLink(shortCode);
-
-	}
+	// @UseGuards(AuthGuard)
+	// @Post('/generate-links')
+	// async generateLinks(@Request() req: Request): Promise<{ permanentLink: string; shortLink: string }> {
+	// 	const userId = req['userId'];
+	// 	const host = req.headers['host'];
+	// 	const protocol = req.headers['x-forwarded-proto'] || 'http';
+	// 	return this.usersService.generateLinks(userId, host, protocol);
+	// }
+	//
+	// @Get('/u/:shortCode')
+	// async getUserByShortLink(@Param('shortCode') shortCode: string) {
+	// 	return await this.usersService.findByShortLink(shortCode);
+	// }
 }

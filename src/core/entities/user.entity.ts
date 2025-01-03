@@ -26,7 +26,7 @@ export abstract class UserEntity {
 	nickname: TNullable<string>;
 	avatar: TNullable<string>;
 	birthday: TNullable<Date>;
-	gender: Genders;
+	gender: string;
 	role: UserRoles;
 	email: string;
 	likes: number;

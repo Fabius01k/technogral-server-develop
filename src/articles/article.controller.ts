@@ -11,7 +11,7 @@ import {
 	UseGuards,
 	UseInterceptors,
 } from '@nestjs/common';
-import { CreateArticleDto, GetArticlesQuery, UpdateArticleDto } from './article.dto';
+import { CreateArticleDto, UpdateArticleDto } from './article.dto';
 import { ArticleService } from './article.service';
 import { ReactionTypes } from '../core/entities/comment.entity';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -23,11 +23,6 @@ import { AuthGuard } from '../auth/auth.guard';
 export class ArticleController {
 	constructor(private readonly articleService: ArticleService) {}
 
-	// @Get()
-	// async GetAllArticles(@Query() query: GetArticlesQuery) {
-	// 	console.log(query.tag, 'query.tag');
-	// 	return this.articleService.GetAllArticles(query.tag);
-	// }
 	@Get()
 	async GetAllArticles(@Query('tags') tags: string) {
 		console.log(tags, 'query.tags');
@@ -77,6 +72,12 @@ export class ArticleController {
 	@Put(':articlesId')
 	async updateArticle(@Param('articlesId') articlesId: string, @Body() updateArticleDto: UpdateArticleDto) {
 		return this.articleService.updateArticle(articlesId, updateArticleDto);
+	}
+
+	@UseGuards(AuthGuard)
+	@Put(':articlesId/add-view')
+	async incrementViewers(@Param('articlesId') articlesId: string) {
+		return this.articleService.incrementViewers(articlesId);
 	}
 
 	@UseGuards(AuthGuard)

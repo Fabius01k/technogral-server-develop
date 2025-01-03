@@ -1,13 +1,14 @@
-import { BadRequestException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from '@nestjs/typeorm';
 import { levelRequirements, User } from '../database/postgress/entities/user.entity';
 import { Repository } from 'typeorm';
-import { CreateUserDto, TChangePasswordDto, UpdateUserDto } from './users.dto';
+import { TChangePasswordDto, UpdateUserDto } from './users.dto';
 import { TypedEventEmitterService } from '../eventEmitter/typedEventEmitter.service';
 import { comparePasswords, getPasswordHash } from '../utils/password.utils';
 import { randomBytes } from 'crypto';
 import { EMailService } from '../mailer/mailer.service';
 import { S3Service } from '../s3/s3.service';
+import { AuthRegisterDto, UserCreateLoginDto } from "../auth/auth.dto";
 
 @Injectable()
 export class UsersService {
@@ -31,17 +32,17 @@ export class UsersService {
 		return await this.userRepository.findOneBy({ email });
 	}
 
-	async getByEmailOrNickname(emailOrNickname: string) {
+	async getByEmailOrLogin(emailOrLogin: string) {
 		return await this.userRepository
 			.createQueryBuilder('User')
-			.where('User.email = :emailOrNickname OR User.nickname = :emailOrNickname', {
-				emailOrNickname,
+			.where('User.email = :emailOrLogin OR User.login = :emailOrLogin', {
+				emailOrLogin,
 			})
 			.getOne();
 	}
 
-	async createUser(userData: CreateUserDto) {
-		const newUser = this.userRepository.create(userData);
+	async createUser(userData: AuthRegisterDto) {
+		const newUser: User = this.userRepository.create(userData);
 
 		return await this.userRepository.save(newUser).catch((e) => {
 			if (/(email)[\s\S]+(already exists)/.test(e.detail)) {
@@ -69,6 +70,33 @@ export class UsersService {
 
 	async updateUser(userId: string, userDto: UpdateUserDto) {
 		return await this.userRepository.update({ id: userId }, userDto);
+	}
+
+	async updateLoginAndShortLink(
+		userId: string,
+		loginDto: UserCreateLoginDto,
+		host: string,
+		protocol: string
+	): Promise<{ shortLink: string }> {
+		const existingUser = await this.userRepository.findOne({ where: { login: loginDto.login } });
+		if (existingUser) {
+			throw new BadRequestException('Login is already use');
+		}
+
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+		if (!user) {
+			throw new NotFoundException('User not found');
+		}
+
+		user.login = loginDto.login;
+
+		const baseUrl = `${protocol}://${host}`;
+		const shortLink = `${baseUrl}/u/${encodeURIComponent(loginDto.login)}`;
+
+		user.shortLink = shortLink;
+		await this.userRepository.save(user);
+
+		return { shortLink };
 	}
 
 	async changePassword(userId: string, { password, newPassword }: TChangePasswordDto): Promise<{ message: string }> {
@@ -293,39 +321,35 @@ export class UsersService {
 		}
 	}
 
-	async generateLinks(
-		userId: string,
-		host: string,
-		protocol: string
-	): Promise<{ permanentLink: string; shortLink: string }> {
-		const user = await this.userRepository.findOne({ where: { id: userId } });
-		if (!user) {
-			throw new NotFoundException('User not found');
-		}
-
-		const baseUrl = `${protocol || 'http'}://${host}`;
-		const permanentLink = `${baseUrl}/members/${user.id}`;
-		const shortLink = `${baseUrl}/u/${this.generateShortCode()}`;
-
-		user.permanentLink = permanentLink;
-		user.shortLink = shortLink;
-
-		await this.userRepository.save(user);
-
-		return { permanentLink, shortLink };
-	}
-
-	async findByShortLink(shortCode: string): Promise<User | null> {
-		const shortLink = `/u/${shortCode}`;
-		console.log(shortLink, 'shortLink');
-		const user = await this.userRepository.findOne({ where: { shortLink } });
-		if (!user) {
-			throw new NotFoundException('User not found');
-		}
-		return user;
-	}
-
-	private generateShortCode(): string {
-		return Math.random().toString(36).substring(2, 10);
-	}
+	// async generateLinks(
+	// 	userId: string,
+	// 	host: string,
+	// 	protocol: string
+	// ): Promise<{ permanentLink: string; shortLink: string }> {
+	// 	const user = await this.userRepository.findOne({ where: { id: userId } });
+	// 	if (!user) {
+	// 		throw new NotFoundException('User not found');
+	// 	}
+	//
+	// 	const baseUrl = `${protocol || 'http'}://${host}`;
+	// 	const permanentLink = `${baseUrl}/members/${user.id}`;
+	// 	const shortLink = `${baseUrl}/u/${this.generateShortCode()}`;
+	//
+	// 	user.permanentLink = permanentLink;
+	// 	user.shortLink = shortLink;
+	//
+	// 	await this.userRepository.save(user);
+	//
+	// 	return { permanentLink, shortLink };
+	// }
+	//
+	// async findByShortLink(shortCode: string): Promise<User | null> {
+	// 	const shortLink = `/u/${shortCode}`;
+	// 	console.log(shortLink, 'shortLink');
+	// 	const user = await this.userRepository.findOne({ where: { shortLink } });
+	// 	if (!user) {
+	// 		throw new NotFoundException('User not found');
+	// 	}
+	// 	return user;
+	// }
 }
